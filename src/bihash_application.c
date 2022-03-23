@@ -58,7 +58,7 @@ do{\
  }\
 }while(0)
 
-#if 0
+#if 1
 #define shift_keys(kvs,kv_sz,shift_nm) \
 do{\
  int i;\
@@ -95,18 +95,18 @@ do{ \
   u64 _loop_cnt = loops_num;\
   u64 _loops_num = loops_num;\
   options = 0;\
-  u64 start; \
-  BVT (clib_bihash_kv) _kv={0} ; \
+  u64 start ; \
+  /* BVT (clib_bihash_kv) _kv=kv[0] */ ; \
   start = clib_cpu_time_now();\
   while(_loop_cnt--){\
 \
     for(i=0;i<8;i++){\
-      shift_one_key(_kv,1);\
-      if (BV (clib_bihash_search) (h, &_kv, &_kv) < 0){\
+      shift_one_key(kv,1);\
+      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
       }\
-      options++; \
+      /* options++ */ ; \
     }\
-   /* options+=8*/ ;\
+    options+=8 ;\
 \
   }\
   cycles = clib_cpu_time_now() - start ;  \
@@ -204,9 +204,9 @@ int main()
 #endif
 
   // #define LOOP_CNT  (1)
-  #define LOOP_CNT  (1e6)
+  // #define LOOP_CNT  (1e6)
   // #define LOOP_CNT  (2e7)
-
+  #define LOOP_CNT  (12374)
 #if 0
    for (j = 0; j < LOOP_CNT; j++)
     {
@@ -229,7 +229,7 @@ int main()
   bm = clib_bitmap_set (bm, 0, 1);
   // u64 loop_cnt = LOOP_CNT;
 
-  kv.key = 0;
+  kv.key = 100;
   for(i=0;i<32;i++){
     kv0_8[i].key = kv.key;
     kv1_8[i].key = kv.key;
@@ -276,7 +276,7 @@ int main()
 //     }
 
     // return 0;
-#if 1
+#if 0
   u64 start;
   u8 valid_key_idx = 0;
   u64 loop_cnt = LOOP_CNT;  
@@ -287,7 +287,7 @@ int main()
     
     for(i=0;i<8;i++){ 
       // if (BV (clib_bihash_search) (h, &kv0_8[i], &kv0_8[i]) < 0){
-       kv.key++;   
+      //  kv.key++;   
       if (BV (clib_bihash_search) (h, &kv, &kv) < 0){
       }
    
@@ -302,8 +302,8 @@ int main()
  
     for(i=0;i<8;i++){
      
-      fformat (stdout, "kv0_8[%d].key:0x%lx,kv0_8[%d].value:0x%lx \n",i,kv0_8[i].key,i,kv0_8[i].value);
-            // fformat (stdout, "kv0_8[%d].key:0x%lx,kv0_8[%d].value:0x%lx \n",i,kv.key,i,kv.value);
+      // fformat (stdout, "kv0_8[%d].key:0x%lx,kv0_8[%d].value:0x%lx \n",i,kv0_8[i].key,i,kv0_8[i].value);
+      fformat (stdout, "kv0_8[%d].key:0x%lx,kv0_8[%d].value:0x%lx \n",i,kv.key,i,kv.value);
 
     
     }
@@ -381,8 +381,9 @@ int main()
 
   #endif
 #if 1
+  perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv,kv);
 
-  perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv0_8,kv0_8);
+  //perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv0_8,kv0_8);
   perf_test_1(1,1,LOOP_CNT,options[1],cycles[1],BV (clib_bihash_search_batch_v1),h,kv1_8,kv1_8);
   perf_test_1(2,2,LOOP_CNT,options[2],cycles[2],BV (clib_bihash_search_batch_v2),h,kv2_8,kv2_8);
   // perf_test_1(3,3,LOOP_CNT,options[3],cycles[3],BV (clib_bihash_search_batch_v3),h,kv3_8,kv3_8);
