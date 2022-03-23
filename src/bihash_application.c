@@ -44,19 +44,128 @@ int add_collisions( BVT (clib_bihash) * h);
 do{\
  int i;\
  for(i=0;i<kv_sz;i++){\
-  if (BV (clib_bihash_search) (h, &kvs[i], &kvs[i]) < 0){}\
+  if (BV (clib_bihash_search) (h, &kvs[i], &valuep[i]) < 0){}\
  }\
   \
 }while(0)
 
 
+#define reset_keys(kvs,kv_sz,key_val) \
+do{\
+ int i;\
+ for(i=0;i<kv_sz;i++){ \
+    kvs[i].key = key_val; \
+ }\
+}while(0)
+
+#if 0
+#define shift_keys(kvs,kv_sz,shift_nm) \
+do{\
+ int i;\
+ for(i=0;i<kv_sz;i++){\
+    kvs[i].key += shift_nm; \
+ }\
+}while(0)
+
+#define shift_one_key(kv,shift_nm) \
+do{\
+kv.key+=shift_nm;\
+}while(0)
+
+#else
+#define shift_keys(kvs,kv_sz,shift_nm) 
+#define shift_one_key(kv,shift_nm)
+#endif
+
+#define statistic_perf(test_no,if_no,loops_num,options,cycles) \
+do{\
+  char *prt_format ="---[item%d]|API V%d|---Des:searching %d elments---|Cycles/Option:%d|cycles:%ld|options:%ld\n"; \
+  fformat (stdout,prt_format, \
+      test_no,\
+      if_no,\
+      loops_num,\
+      cycles/options,\
+      cycles,\
+      options \
+      ); \
+}while(0)
+
+#define perf_test_0(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num;\
+  u64 _loops_num = loops_num;\
+  options = 0;\
+  u64 start; \
+  BVT (clib_bihash_kv) _kv={0} ; \
+  start = clib_cpu_time_now();\
+  while(_loop_cnt--){\
+\
+    for(i=0;i<8;i++){\
+      shift_one_key(_kv,1);\
+      if (BV (clib_bihash_search) (h, &_kv, &_kv) < 0){\
+      }\
+      options++; \
+    }\
+   /* options+=8*/ ;\
+\
+  }\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,_loops_num,options,cycles);\
+}while(0)
+
+#define perf_test_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num;\
+  u64 _loops_num = loops_num;\
+  options = 0;\
+  u64 start; \
+  u8 key_mask = 8;\
+  u8 valid_key_idx = 0; \
+  reset_keys(kv,8,8);\
+  start = clib_cpu_time_now();\
+  while(_loop_cnt--){\
+\
+    shift_keys(kv,8,8);\
+      if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+      }\
+    options+=8; \
+\
+  }\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,_loops_num,options,cycles);\
+}while(0)
+
+#define perf_test_2(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num;\
+  u64 _loops_num = loops_num;\
+  options = 0;\
+  u64 start; \
+  reset_keys(kv,8,8);\
+  start = clib_cpu_time_now();\
+  \
+    while(_loop_cnt--){\
+\
+    shift_keys(kv,8,8);\
+    clib_bihash_search_batch_v5(h,kv,8,kv);\
+    options+=8; \
+\
+  }\
+  \
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,_loops_num,options,cycles);\
+}while(0)
+
+//
+// 3/23/2022 todo: create new interface to test the consistency on searching results.
+// #define perf_consistency_test() 
 
 int main()
 {
 
   BVT (clib_bihash_kv) kv;
   int i, j;
-  u64 start;
+
   // u64 nbuckets = 32000;
   u64 cycles[32];
   u64 options[32];
@@ -80,7 +189,7 @@ int main()
   // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
 
 
-
+#if 1
    for (j = 0; j < 100; j++)
     {
       for (i = 1; i <= j * 1000 + 1; i++)
@@ -92,25 +201,42 @@ int main()
         // BV (clib_bihash_add_del) (&hash2, &kv, 1 /* is_add */ );
       }    
     }
-
-  u8 key_mask = 8;
-  u8 valid_key_idx = 0;
+#endif
 
   // #define LOOP_CNT  (1)
-  // #define LOOP_CNT  (1000)
-  #define LOOP_CNT  (1e9)
+  #define LOOP_CNT  (1e6)
+  // #define LOOP_CNT  (2e7)
+
+#if 0
+   for (j = 0; j < LOOP_CNT; j++)
+    {
+     
+        kv.key = j;
+        kv.value = j;
+
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
+        // BV (clib_bihash_add_del) (&hash2, &kv, 1 /* is_add */ );
+        
+    }
+#endif
+
+  // u8 key_mask = 8;
+  // u8 valid_key_idx = 0;
+
+
 
   clib_bitmap_t *bm = NULL ;
   bm = clib_bitmap_set (bm, 0, 1);
-  u64 loop_cnt = LOOP_CNT;
+  // u64 loop_cnt = LOOP_CNT;
 
+  kv.key = 0;
   for(i=0;i<32;i++){
-    kv0_8[i].key = 100+i;
-    kv1_8[i].key = 100+i;
-    kv2_8[i].key = 100+i;
-    kv3_8[i].key = 100+i;
-    kv4_8[i].key = 100+i;
-    kv5_8[i].key = 100+i;
+    kv0_8[i].key = kv.key;
+    kv1_8[i].key = kv.key;
+    kv2_8[i].key = kv.key;
+    kv3_8[i].key = kv.key;
+    kv4_8[i].key = kv.key;
+    kv5_8[i].key = kv.key;
 
     kv0_8[i].value = 0;
     kv2_8[i].value = 0;
@@ -150,12 +276,18 @@ int main()
 //     }
 
     // return 0;
+#if 1
+  u64 start;
+  u8 valid_key_idx = 0;
+  u64 loop_cnt = LOOP_CNT;  
   options[0] = 0;
   start = clib_cpu_time_now();
   while(loop_cnt--){
 
+    
     for(i=0;i<8;i++){ 
       // if (BV (clib_bihash_search) (h, &kv0_8[i], &kv0_8[i]) < 0){
+       kv.key++;   
       if (BV (clib_bihash_search) (h, &kv, &kv) < 0){
       }
    
@@ -176,13 +308,20 @@ int main()
     
     }
     
+#endif
 
-    #if 1
+    #if 0
+
+
   //statistic start
   loop_cnt = LOOP_CNT;
   options[1] = 0;
   start = clib_cpu_time_now();
   while(loop_cnt--){
+
+    shift_keys(kv1_8,8,8);
+
+
     if (BV (clib_bihash_search_batch_v1) (h, kv1_8, key_mask, kv1_8, &valid_key_idx) < 0){
         //warning...
             // clib_warning("[%d] search for key %lld failed unexpectedly\n", 0,kv2_8[7].key);
@@ -204,16 +343,19 @@ int main()
       i,kv1_8[i].key,i,kv1_8[i].value);
  
   }
-
-
+  
+  
   #endif
 
-  #if 1
+  #if 0
   //statistic start
   loop_cnt = LOOP_CNT;
   options[2] = 0;
   start = clib_cpu_time_now();
   while(loop_cnt--){
+
+    shift_keys(kv2_8,8,8);
+
     if (BV (clib_bihash_search_batch_v2) (h, kv2_8, key_mask, kv2_8, &valid_key_idx) < 0){
         //warning...
             // clib_warning("[%d] search for key %lld failed unexpectedly\n", 0,kv2_8[7].key);
@@ -238,12 +380,26 @@ int main()
 
 
   #endif
+#if 1
 
- #if 1
+  perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv0_8,kv0_8);
+  perf_test_1(1,1,LOOP_CNT,options[1],cycles[1],BV (clib_bihash_search_batch_v1),h,kv1_8,kv1_8);
+  perf_test_1(2,2,LOOP_CNT,options[2],cycles[2],BV (clib_bihash_search_batch_v2),h,kv2_8,kv2_8);
+  // perf_test_1(3,3,LOOP_CNT,options[3],cycles[3],BV (clib_bihash_search_batch_v3),h,kv3_8,kv3_8);
+  perf_test_1(4,4,LOOP_CNT,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+  perf_test_2(5,5,LOOP_CNT,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+
+  
+  return 0;
+#endif
+ #if 0
   loop_cnt = LOOP_CNT;
   options[3] = 0;
   start = clib_cpu_time_now();
   while(loop_cnt--){
+
+    shift_keys(kv3_8,8,8);
+
     if (BV (clib_bihash_search_batch_v3) (h, kv3_8, key_mask, kv3_8, bm) < 0){
         //warning...
             clib_warning
@@ -269,20 +425,18 @@ int main()
     valid_key_idx,options[3],cycles[3]);
 #endif
 
+#if 0
 //statistic start
   loop_cnt = LOOP_CNT;
   options[4] = 0;
   key_mask = 0xFF;
   start = clib_cpu_time_now();
   while(loop_cnt--){
+
+    shift_keys(kv4_8,8,8);
+
     if (BV (clib_bihash_search_batch_v4) (h, kv4_8, key_mask, kv4_8, &valid_key_idx) < 0){
         //warning...
-            clib_warning
-          ("[%d] search for key %lld failed unexpectedly\n", 0,
-            kv4_8[7].key);
-            
-    }else{
-      
     }
     options[4]+=8;
   }
@@ -298,12 +452,17 @@ int main()
       fformat (stdout, "kv4_8[%d].key:0x%lx,kv4_8[%d].value:N/A \n",
         i,kv4_8[i].key,i);
     }
-  
+  #endif
+
+  #if 0
   //statistic start
   loop_cnt = LOOP_CNT;
   options[5] = 0;
   start = clib_cpu_time_now();
   while(loop_cnt--){
+
+      shift_keys(kv5_8,8,8);
+
       clib_bihash_search_batch_v5(h,kv5_8,8,kv5_8);
       // clib_bihash_search_batch_v5(&hash2,kv5_8,8,kv5_8);
       options[5]+=8;
@@ -317,7 +476,7 @@ int main()
         i,kv5_8[i].key,i,kv5_8[i].value);
     }
     
-
+#endif
   fformat(stdout,"Summary:@%ld"
                   "options\n\t[item0]:%d cycles/options,""[item1]:%d cycles/options,\n\t"
                   "[item2]:%d cycles/options,[item3]:%d cycles/options,\n\t"
