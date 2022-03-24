@@ -28,6 +28,8 @@
 #include <stdio.h>
 #include <pthread.h>
 
+#include <openssl/md5.h>
+
 // #include <vppinfra/bihash_8_8.h>
 #include <vppinfra/bihash_8_8_stats.h>
 #include <vppinfra/bihash_template.h>
@@ -54,7 +56,7 @@ do{\
 do{\
  int i;\
  for(i=0;i<kv_sz;i++){ \
-    kvs[i].key = key_val; \
+    kvs[i].key = key_val+i; \
  }\
 }while(0)
 
@@ -98,17 +100,18 @@ do{ \
   u64 start ; \
   /* BVT (clib_bihash_kv) _kv=kv[0] */ ; \
   start = clib_cpu_time_now();\
-  while(_loop_cnt--){\
+  do{\
 \
     for(i=0;i<8;i++){\
-      shift_one_key(kv,1);\
+      \
       if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
       }\
+      shift_one_key(kv,1);\
       /* options++ */ ; \
     }\
     options+=8 ;\
 \
-  }\
+  }while(_loop_cnt--);\
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,_loops_num,options,cycles);\
 }while(0)
@@ -121,16 +124,16 @@ do{ \
   u64 start; \
   u8 key_mask = 8;\
   u8 valid_key_idx = 0; \
-  reset_keys(kv,8,8);\
+  reset_keys(kv,8,0);\
   start = clib_cpu_time_now();\
-  while(_loop_cnt--){\
+  do{\
 \
-    shift_keys(kv,8,8);\
-      if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
       }\
+    shift_keys(kv,8,8);\
     options+=8; \
 \
-  }\
+  }while(_loop_cnt--);\
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,_loops_num,options,cycles);\
 }while(0)
@@ -141,26 +144,194 @@ do{ \
   u64 _loops_num = loops_num;\
   options = 0;\
   u64 start; \
-  reset_keys(kv,8,8);\
+  reset_keys(kv,8,0);\
   start = clib_cpu_time_now();\
   \
-    while(_loop_cnt--){\
+    do{\
 \
-    shift_keys(kv,8,8);\
     clib_bihash_search_batch_v5(h,kv,8,kv);\
+    shift_keys(kv,8,0);\
     options+=8; \
 \
-  }\
+  }while(_loop_cnt--);\
   \
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,_loops_num,options,cycles);\
 }while(0)
 
+#define dump_md5(if_name,out0) do{\
+\
+int n; \
+fformat (stdout,"["#if_name"]\n\t md5sum:");\
+for(n=0; n<MD5_DIGEST_LENGTH; n++) \
+        fformat (stdout,"%02x", out0[n]);\
+fformat (stdout,"\n");\
+}while(0)
+
+
+always_inline u64 bitmap_first_set(u64 ai)
+{
+  u64 i;
+  u64 base = 1;
+  for(i=0;i<64;i++){
+     if((ai & (base<<i))){
+      return i;
+    }
+  }
+  return ~0;
+}
+
+always_inline u64 bitmap_next_set(u64 ai,u64 ei)
+{
+  u64 i;
+  u64 base = 1;
+  for(i=ei; i<64; i++){
+     if((ai & (base<<i))){
+      return i;
+    }
+  }
+  return ~0;
+}
+
+#define bit_foreach(i,ai) \
+  if(ai) \
+    for(i = bitmap_first_set(ai); \
+        i != ~0; \
+        i = bitmap_next_set(ai,i+1))
+
+#define judge_match_result(if_fn0,if_fn1,md5sum0,md5sum1,ret) \
+do{\
+  ret = memcmp(out0,out1,MD5_DIGEST_LENGTH) ?1:0; \
+  if(!ret){\
+    fformat (stdout,#if_fn0" IS MATCH "#if_fn1"\n",if_fn0,if_fn1);\
+  }else{\
+    dump_md5(if_fn0,out0);dump_md5(if_fn1,out1);\
+  }\
+}while(0)
+
+#define consistency_test_0(test_no,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
+do{\
+  u64 _loop_cnt = loops_num;\
+  MD5_CTX c[2];\
+  char buf[256];\
+  unsigned char out0[MD5_DIGEST_LENGTH];\
+  unsigned char out1[MD5_DIGEST_LENGTH];\
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  int ret; \
+  u64 cnts[2]={0,0};\
+  kv0.key = 0;\
+  reset_keys(kv1,8,0);\
+  MD5_Init(&c[0]);\
+  MD5_Init(&c[1]);\
+  \
+  do{\
+  \
+    for(i=0;i<8;i++){\
+      if (if_fn0 (h, &kv0, &kv0) == 0){\
+      cnts[0]++;\
+        sprintf(buf,"%ld",kv0.value);\
+        MD5_Update(&c[0], buf, strlen(buf));\
+      }\
+      shift_one_key(kv0,1);\
+      /* options++ */ ; \
+    }\
+    \
+    if (if_fn1(h, kv1, key_mask,kv1,&valid_key_idx) > 0){\
+       bit_foreach(i,valid_key_idx){\
+       cnts[1]++;\
+          sprintf(buf,"%ld",kv1[i].value);\
+          MD5_Update(&c[1], buf, strlen(buf));\
+        }\
+    }\
+    shift_keys(kv1,8,8);\
+  }while(_loop_cnt--);\
+  \
+  MD5_Final(out0, &c[0]);\
+  MD5_Final(out1, &c[1]);\
+  judge_match_result(if_fn0,if_fn1,out0,out1,ret);\
+ \
+}while(0)
+
+
+#define consistency_test_1(test_no,if_no0,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
+do{\
+  u64 _loop_cnt = loops_num;\
+  MD5_CTX c[2];\
+  char buf[256];\
+  unsigned char out0[MD5_DIGEST_LENGTH];\
+  unsigned char out1[MD5_DIGEST_LENGTH];\
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  int ret; \
+  reset_keys(kv0,8,0);\
+  reset_keys(kv1,8,0);\
+  MD5_Init(&c[0]);\
+  MD5_Init(&c[1]);\
+  \
+  do{\
+  \
+    if (if_fn0(h, kv0, key_mask,kv0,&valid_key_idx) > 0){\
+        bit_foreach(i,valid_key_idx){\
+          sprintf(buf,"%ld",kv0[i].value);\
+          MD5_Update(&c[0], buf, strlen(buf));\
+        }\
+    }\
+    \
+    if (if_fn1(h, kv1, key_mask,kv1,&valid_key_idx) > 0){\
+       bit_foreach(i,valid_key_idx){\
+          sprintf(buf,"%ld",kv1[i].value);\
+          MD5_Update(&c[1], buf, strlen(buf));\
+        }\
+    }\
+    shift_keys(kv0,8,8);\
+    shift_keys(kv1,8,8);\
+  }while(_loop_cnt--);\
+  \
+  MD5_Final(out0, &c[0]);\
+  MD5_Final(out1, &c[1]);\
+  judge_match_result(if_fn0,if_fn1,out0,out1,ret);\
+\
+}while(0)
+
+int test_md5()
+{
+  MD5_CTX c[32];
+  unsigned char out[MD5_DIGEST_LENGTH];
+  char buf[256];
+  int i,n;
+  int bytes = 4;
+  for(i=0;i<32;i++)
+     MD5_Init(&c[i]);
+  
+
+    // while(bytes > 0)
+    // {
+    for(i=0;i<32;i++){
+      sprintf(buf,"%d",i);
+      MD5_Update(&c[i], "abcd", bytes);
+      MD5_Update(&c[i], buf, 2);
+
+    }
+     
+        // bytes=read(STDIN_FILENO, buf, 512);
+    // }
+    for(i=0;i<32;i++){
+      MD5_Final(out, &c[i]);
+      printf("--item[%0.2d]:",i);
+      for(n=0; n<MD5_DIGEST_LENGTH; n++)
+          printf("%02x", out[n]);
+      printf("\n");
+    }
+
+
+  return 0;
+}
 //
 // 3/23/2022 todo: create new interface to test the consistency on searching results.
 // #define perf_consistency_test() 
 
-int main()
+int main(int argc,char *argv[])
 {
 
   BVT (clib_bihash_kv) kv;
@@ -187,9 +358,15 @@ int main()
 
   BV (clib_bihash_init) (h, "test", user_buckets, user_memory_size);
   // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
+  
+  for(i=0;i<32;i++){
+    cycles[i] = 0;
+    options[i] = 1;
+  }
+  int is_which ;
 
-
-#if 1
+#if 0
+  #define LOOP_CNT  (12374)
    for (j = 0; j < 100; j++)
     {
       for (i = 1; i <= j * 1000 + 1; i++)
@@ -198,16 +375,14 @@ int main()
         kv.value = i+1+0x7FFFFFFFFFFF;
 
         BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-        // BV (clib_bihash_add_del) (&hash2, &kv, 1 /* is_add */ );
       }    
     }
 #endif
 
-  // #define LOOP_CNT  (1)
-  // #define LOOP_CNT  (1e6)
-  // #define LOOP_CNT  (2e7)
-  #define LOOP_CNT  (12374)
-#if 0
+
+  // 
+#if 1
+  #define LOOP_CNT  (1e6)
    for (j = 0; j < LOOP_CNT; j++)
     {
      
@@ -219,6 +394,13 @@ int main()
         
     }
 #endif
+
+#if 0
+
+  // #define LOOP_CNT  (1)
+  // #define LOOP_CNT  (2e7)
+#endif
+
 
   // u8 key_mask = 8;
   // u8 valid_key_idx = 0;
@@ -287,7 +469,7 @@ int main()
     
     for(i=0;i<8;i++){ 
       // if (BV (clib_bihash_search) (h, &kv0_8[i], &kv0_8[i]) < 0){
-      //  kv.key++;   
+       kv.key++;   
       if (BV (clib_bihash_search) (h, &kv, &kv) < 0){
       }
    
@@ -380,19 +562,87 @@ int main()
 
 
   #endif
-#if 1
-  perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv,kv);
-
-  //perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv0_8,kv0_8);
-  perf_test_1(1,1,LOOP_CNT,options[1],cycles[1],BV (clib_bihash_search_batch_v1),h,kv1_8,kv1_8);
-  perf_test_1(2,2,LOOP_CNT,options[2],cycles[2],BV (clib_bihash_search_batch_v2),h,kv2_8,kv2_8);
-  // perf_test_1(3,3,LOOP_CNT,options[3],cycles[3],BV (clib_bihash_search_batch_v3),h,kv3_8,kv3_8);
-  perf_test_1(4,4,LOOP_CNT,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-  perf_test_2(5,5,LOOP_CNT,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+  is_which = 0xFF;
+  int is_consistency = 0xFF;
+  if(argc > 1){
+    is_which = atoi(argv[1]);
+  }
 
   
-  return 0;
-#endif
+  // test_md5();
+  if(is_which == 0xFF){
+    fformat (stdout,"perf_test[ALL]...\n");
+      perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv,kv);
+      perf_test_1(1,1,LOOP_CNT,options[1],cycles[1],BV (clib_bihash_search_batch_v1),h,kv1_8,kv1_8);
+      perf_test_1(2,2,LOOP_CNT,options[2],cycles[2],BV (clib_bihash_search_batch_v2),h,kv2_8,kv2_8);
+      // perf_test_1(3,3,LOOP_CNT,options[3],cycles[3],BV (clib_bihash_search_batch_v3),h,kv3_8,kv3_8);
+      perf_test_1(4,4,LOOP_CNT,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+      perf_test_2(5,5,LOOP_CNT,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+  }else if(is_which == 0x0 ){
+      fformat (stdout,"perf_test[0]...\n");
+      perf_test_0(0,0,LOOP_CNT,options[0],cycles[0],NULL,h,kv,kv);
+  }else if(is_which == 0x1){
+      fformat (stdout,"perf_test[1]...\n");
+      perf_test_1(1,1,LOOP_CNT,options[1],cycles[1],BV (clib_bihash_search_batch_v1),h,kv1_8,kv1_8);
+  }else if(is_which == 0x2){
+      fformat (stdout,"perf_test[2]...\n");
+      perf_test_1(2,2,LOOP_CNT,options[2],cycles[2],BV (clib_bihash_search_batch_v2),h,kv2_8,kv2_8);
+  } else if(is_which == 0x3){
+      fformat (stdout,"perf_test[3]...\n");
+      // perf_test_1(3,3,LOOP_CNT,options[3],cycles[3],BV (clib_bihash_search_batch_v3),h,kv3_8,kv3_8);
+  }else if(is_which == 0x4){
+      fformat (stdout,"perf_test[4]...\n");
+      perf_test_1(4,4,LOOP_CNT,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+  }else if(is_which == 0x5){
+      fformat (stdout,"perf_test[5]...\n");
+      perf_test_2(5,5,LOOP_CNT,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+  }
+
+  if(argc >2){
+    is_consistency = atoi(argv[2]);
+  }
+ 
+  if(is_consistency == 0xFF){
+      fformat (stdout,"consistency_test[ALL]...\n");
+      consistency_test_0( 0,
+                          4,
+                          LOOP_CNT,
+                          h,
+                          kv,
+                          kv4_8,
+                          BV (clib_bihash_search),
+                          BV (clib_bihash_search_batch_v4));
+      consistency_test_1( 1,
+                          1,4,
+                          LOOP_CNT,
+                          h,
+                          kv1_8,kv4_8,
+                          BV (clib_bihash_search_batch_v1),
+                          BV (clib_bihash_search_batch_v4));
+  }else if(is_consistency == 0){
+      fformat (stdout,"consistency_test[0]...\n");
+      consistency_test_0( 0,
+                          4,
+                          LOOP_CNT,
+                          h,
+                          kv,
+                          kv4_8,
+                          BV (clib_bihash_search),
+                          BV (clib_bihash_search_batch_v4));
+  }else if(is_consistency == 1){
+      fformat (stdout,"consistency_test[1]...\n");
+      consistency_test_1( 1,
+                          1,4,
+                          LOOP_CNT,
+                          h,
+                          kv1_8,kv4_8,
+                          BV (clib_bihash_search_batch_v1),
+                          BV (clib_bihash_search_batch_v4));
+  }
+  
+
+
+
  #if 0
   loop_cnt = LOOP_CNT;
   options[3] = 0;
@@ -478,14 +728,38 @@ int main()
     }
     
 #endif
-  fformat(stdout,"Summary:@%ld"
-                  "options\n\t[item0]:%d cycles/options,""[item1]:%d cycles/options,\n\t"
-                  "[item2]:%d cycles/options,[item3]:%d cycles/options,\n\t"
-                  "[item4]:%d cycles/options,[item5]:%d cycles/options, \n",
+
+  
+  fformat(stdout,"Summary:@%ld options \n\t"
+                  "[items]----|Cycles/options| \n\t"
+                  "[item0]:     %d \n\t"
+                  "[item1]:     %d \n\t"
+                  "[item2]:     %d \n\t"
+                  "[item3]:     %d \n\t"
+                  "[item4]:     %d \n\t"
+                  "[item5]:     %d \n",
              options[0],
              cycles[0]/options[0],cycles[1]/options[1],
              cycles[2]/options[2],cycles[3]/options[3],
              cycles[4]/options[4],cycles[5]/options[5]);
+
+  #define inc_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
+
+  f64 base = cycles[0]/options[0];
+  fformat(stdout,"perf percentage:\t\n "
+                  "---|V0 as the benchmark:%0.2f| "
+                  "[item1]:%.2f%% |"
+                  "[item2]:%.2f%% |"
+                  "[item3]:%.2f%% |"
+                  "[item4]:%.2f%% |"
+                  "[item5]:%.2f%%  \n",
+            base,
+            inc_per(base,cycles[1]/options[1]),
+            inc_per(base,cycles[2]/options[2]),
+            inc_per(base,cycles[3]/options[3]),
+            inc_per(base,cycles[4]/options[4]),
+            inc_per(base,cycles[5]/options[5])
+            );
 
 
   return 0;
