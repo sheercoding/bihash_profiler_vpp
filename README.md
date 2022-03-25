@@ -50,8 +50,11 @@ Help users to get better know when and who have the better performance.
 syntax: ./bin/bihash_application.icl [profile_idx] [perf_cmp_id] [consistency_check_msk] 
 
 explains:   1st, select row by profile_idx on the schema, initial the hash table.
-            2nd, select APIs from group{V0,V4,V5}, execute searching from previous initialized hash table,respectively, output perfs result and get the statistic of perfs.
-            3td, check the data consistency for respective search result, here, pick up each value to subsequent, inject found value to MD5 alogrithm, get the digest md5sum. observe the md5sum,  if the md5sum are match,both of the compared API have the same outputs.
+            2nd, select APIs from group{V0,V4,V5}, execute searching from previous initialized hash table,respectively,
+            output perfs result and get the statistic of perfs.
+            3td, check the data consistency for respective search result, here, pick up each value to subsequent,
+            inject found value to MD5 alogrithm, get the digest md5sum. observe the md5sum, 
+            if the md5sum are match,both of the compared API have the same outputs.
  
 e.g., ./bin/bihash_application.icl 0 255 255
             choose the first shcema (99000 cnts) to initial hash table;
@@ -60,7 +63,7 @@ e.g., ./bin/bihash_application.icl 0 255 255
           
 ```
 
-# Exmple
+# Example
 ```bash
 ./bin/bihash_application.icl 20 255 255
 
@@ -89,6 +92,10 @@ consistency_test[ALL]...
 clib_bihash_search_8_8_stats|-> MATCH <-|clib_bihash_search_batch_v4_8_8_stats ---[PASS]
 
 ```
+
+# Statistic perfs
+
+![image](https://user-images.githubusercontent.com/94589984/160145887-f103e667-c840-4424-a60b-99a4a2ad99e9.png)
 
 # Build instructions
 
