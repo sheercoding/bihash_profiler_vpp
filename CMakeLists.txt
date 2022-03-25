@@ -23,7 +23,7 @@
 cmake_minimum_required(VERSION 3.5)
 
 set(CMAKE_C_COMPILER_NAMES clang-11 clang-9 gcc-9 cc)
-project(vpp-toys LANGUAGES C)
+project(vpp-apps LANGUAGES C)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
 # find_path(VPP_RELEASE_INSTALL_PATH
@@ -45,6 +45,7 @@ endif ()
 message(STATUS "Using VPP tree: ${VPP_RELEASE_INSTALL_PATH}")
 
 set(CMAKE_C_FLAGS "-g -fstack-protector -fno-common -Wall -Werror")
+set(CMAKE_EXE_LINKER_FLAGS "-lssl -lcrypto ")
 
 # list(APPEND MARCH_VARIANTS "sse42\;-march=corei7 -mtune=corei7-avx")
 # list(APPEND MARCH_VARIANTS "avx2\;-march=core-avx2 -mtune=core-avx2")
@@ -80,14 +81,14 @@ macro(add_exec exec)
     endforeach()
   else()
     add_executable(${exec} ${ARG_SOURCES})
-    target_link_libraries(${exec} ${VPPINFRA_LIB} )
+    target_link_libraries(${exec} ${VPPINFRA_LIB})
     target_include_directories(${exec} PUBLIC ${VPP_RELEASE_INSTALL_PATH}/include)
     target_compile_options(${exec} PUBLIC -march=native -O3)
   endif()
   # Debug
   set(e ${exec}.debug)
   add_executable(${e} ${ARG_SOURCES})
-  target_link_libraries(${e} ${VPPINFRA_LIB} )
+  target_link_libraries(${e} ${VPPINFRA_LIB})
   target_include_directories(${e} PUBLIC ${VPP_RELEASE_INSTALL_PATH}/include)
   target_compile_options(${e} PUBLIC -march=native -O0)
 endmacro()
