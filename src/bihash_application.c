@@ -35,9 +35,65 @@
 
 #include <vppinfra/bihash_template.c>
 
+typedef struct
+{
+  u64 alloc_add;
+  u64 add;
+  u64 split_add;
+  u64 replace;
+  u64 update;
+  u64 del;
+  u64 del_free;
+  u64 linear;
+  u64 resplit;
+  u64 working_copy_lost;
+  u64 *splits;
+} bihash_stats_t;
+
+bihash_stats_t stats;
+
+u8 * format_bihash_stats (u8 * s, va_list * args)
+{
+  BVT (clib_bihash) * h = va_arg (*args, BVT (clib_bihash) *);
+  int verbose = va_arg (*args, int);
+  int i;
+  bihash_stats_t *sp = h->inc_stats_context;
+
+#define _(a) s = format (s, "%20s: %lld\n", #a, sp->a);
+  foreach_bihash_stat;
+#undef _
+  for (i = 0; i < vec_len (sp->splits); i++)
+    {
+      if (sp->splits[i] > 0 || verbose)
+	s = format (s, "    splits[%d]: %lld\n", 1 << i, sp->splits[i]);
+    }
+  return s;
+}
+
+static void
+inc_stats_callback (BVT (clib_bihash) * h, int stat_id, u64 count)
+{
+  uword *statp = h->inc_stats_context;
+  bihash_stats_t *for_splits;
+
+  if (PREDICT_TRUE (stat_id * sizeof (u64)
+		    < STRUCT_OFFSET_OF (bihash_stats_t, splits)))
+    {
+      statp[stat_id] += count;
+      return;
+    }
+
+  for_splits = h->inc_stats_context;
+  vec_validate (for_splits->splits, count);
+  for_splits->splits[count] += 1;
+}
+
+
 int add_collisions( BVT (clib_bihash) * h);
 
-#define clib_bihash_search_batch_v5(h,kvs,kv_sz,valuep) \
+#define USER_BIT_SET(a,b) ((a) |= (1ULL<<(b)))
+
+#define bihash_search_batch_v5(h,kvs,kv_sz,valuep) \
 do{\
     int i;\
     for(i=0;i<kv_sz;i++){\
@@ -46,7 +102,32 @@ do{\
     \
 }while(0)
 
+#define bihash_search_batch_v5_with_couter(h,kvs,kv_sz,valuep,cnt,bitmap) \
+do{\
+    int i;\
+    for(i=0;i<kv_sz;i++){\
+      if (BV (clib_bihash_search) (h, &kvs[i], &valuep[i]) < 0){\
+      }else{\
+      USER_BIT_SET(bitmap,i);\
+        cnt++;\
+      }\
+    }\
+    \
+}while(0)
 
+int BV (clib_bihash_search_batch_v5)
+  (BVT (clib_bihash) * h,
+   BVT (clib_bihash_kv) * search_key, u8 key_mask,
+   BVT (clib_bihash_kv) * valuep,u8 * valid_key_idx)
+{
+  int ret = 0;
+  int kvs_cnt = _mm_popcnt_u32 (key_mask);
+  u8 bitmap=0;
+  bihash_search_batch_v5_with_couter(h,search_key,kvs_cnt,search_key,ret,bitmap);
+  *valid_key_idx = bitmap;
+  return ret;
+}
+  
 #define reset_keys(kvs,kv_sz,key_val) \
 do{\
     int i;\
@@ -152,7 +233,7 @@ do{ \
   \
     do{\
 \
-    clib_bihash_search_batch_v5(h,kv,8,kv);\
+    bihash_search_batch_v5(h,kv,8,kv);\
     shift_keys(kv,8,8);\
     options+=8; \
 \
@@ -297,9 +378,61 @@ do{\
 \
 }while(0)
 
-//
-// 3/23/2022 todo: create new interface to test the consistency on searching results.
-// #define perf_consistency_test() 
+
+
+/**
+*
+*
+*  key-val schema
+*
+*               is_which_profile
+*                      |
+*           table |--- ID ---|----Description-----|-------------------supplementary-------|
+*           row0  | 0        |  99000 cnts        |
+*           row1  | 1        |  general case      |
+*           row2  | 2        |  log2_page case    |
+*           row3  | 3        |  exception case    | some key didn't exist in hash table   |
+*           row4  | 11       |  2E7 cnts          |
+*           row5  | 20       |  1E6 cnts          |
+*           row6  | 21       |  linear case       |
+*           ---------------------------------------------------------------------------------
+*/
+
+/*
+*
+*
+*       V0: clib_bihash_search,           benchmark
+*       V4: clib_bihash_search_batch_v4,  base V0, vectorize search dataflow on loading hash
+*                                         AVX512 intrinsic,judge condition simultaneously.
+*       V5: clib_bihash_search_batch_v5,  A macro wrap 8 original searching API, 
+*                                         no incremental  AVX512 in API.
+*
+*
+*/
+
+/**
+* 
+*  defination:  1st, select row by profile_idx on the schema, initial the hash table.
+*               2nd, select APIs from group{V0,V4,V5}, execute searching from previous initialized hash table,
+*                    respectively, output perfs result and get the statistic of perfs.
+*               3td, check the data consistency for respective search result, here, pick up each value to 
+*                    subsequent, inject found value to MD5 alogrithm, get the digest md5sum. observe the md5sum, 
+*                    if the md5sum are match,both of the compared API have the same outputs.
+* 
+*  syntax: ./bin/bihash_application.icl [profile_idx] [perf_cmp_id] [consistency_check_msk] 
+*
+*  e.g.,  ./bin/bihash_application.icl 0 255 255
+*          choose the first shcema (99000 cnts) to initial hash table;
+*          mark APIs {V0,V4,V5} available, to test respective perfs;
+*          mark all the combination{V0 vs V4, V5 vs V4} available, check their concistency.
+*           
+*          
+*/ 
+
+/*
+*
+*
+*/
 
 int main(int argc,char *argv[])
 {
@@ -325,6 +458,8 @@ int main(int argc,char *argv[])
   clib_mem_init (0, 1ULL << 30);
 
   BV (clib_bihash_init) (h, "test", user_buckets, user_memory_size);
+  BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
+
   // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
   
   kv.key = 0;
@@ -392,7 +527,31 @@ int main(int argc,char *argv[])
         
       }
      
+  }else if(is_which_profile == 20){
+
+      loop_cnt=1e6;
+      for (j = 0; j < loop_cnt; j++)
+      {
+        kv.key = j+(j+100)^2;
+        kv.value = j;
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
+        
+      }
+     
+  }else if(is_which_profile == 21){
+    /* linear case */
+    /* linear: 5031 */
+      loop_cnt=1e7;
+      for (j = 0; j < loop_cnt; j++)
+      {
+        kv.key = j*j;
+        kv.value = j;
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
+        
+      }
+     
   }else{
+    /* default */
        loop_cnt=1e6;
       for (j = 0; j < loop_cnt; j++)
         {
@@ -403,7 +562,8 @@ int main(int argc,char *argv[])
         }
       
   }
-  
+  fformat (stdout, "Stats:\n%U", format_bihash_stats, h, 1 /* verbose */ );
+
   is_which = 0xFF;
   int is_consistency = 0xFF;
   if(argc > 2){
@@ -460,7 +620,7 @@ int main(int argc,char *argv[])
                           loop_cnt,
                           h,
                           kv1_8,kv4_8,
-                          BV (clib_bihash_search_batch_v1),
+                          BV (clib_bihash_search_batch_v5),
                           BV (clib_bihash_search_batch_v4));
   }else if(is_consistency == 0){
       fformat (stdout,"consistency_test[0]...\n");
@@ -479,7 +639,7 @@ int main(int argc,char *argv[])
                           loop_cnt,
                           h,
                           kv1_8,kv4_8,
-                          BV (clib_bihash_search_batch_v1),
+                          BV (clib_bihash_search_batch_v5),
                           BV (clib_bihash_search_batch_v4));
   }
   
