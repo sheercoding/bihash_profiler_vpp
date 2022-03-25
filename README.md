@@ -99,7 +99,7 @@ clib_bihash_search_8_8_stats|-> MATCH <-|clib_bihash_search_batch_v4_8_8_stats -
 
 # Build instructions
 
-## Clone and uild vpp release
+## Clone and build vpp release
 
 ```bash
 git clone https://git.fd.io/vpp
