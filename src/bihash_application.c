@@ -55,6 +55,12 @@ do{\
     }\
 }while(0)
 
+#define reset_one_key(kv,key_val) \
+do{\
+   kv.key = key_val;\
+}while(0)
+
+
 #if 1
 #define shift_keys(kvs,kv_sz,shift_nm) \
 do{\
@@ -98,7 +104,7 @@ do{ \
   u64 _loops_num = loops_num;\
   options = 0;\
   u64 start ; \
-  /* BVT (clib_bihash_kv) _kv=kv[0] */ ; \
+  reset_one_key(kv,0); \
   start = clib_cpu_time_now();\
   do{\
 \
@@ -150,7 +156,7 @@ do{ \
     do{\
 \
     clib_bihash_search_batch_v5(h,kv,8,kv);\
-    shift_keys(kv,8,0);\
+    shift_keys(kv,8,8);\
     options+=8; \
 \
   }while(--_loop_cnt);\
