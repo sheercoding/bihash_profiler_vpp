@@ -74,6 +74,11 @@ do{\
 #define shift_one_key(kv,shift_nm)
 #endif
 
+#define perf_clear_cache(start,end) do{\
+fformat (stdout,"clear_cache,start:0x%lx,end:0x%lx\n",start,end);\
+  __builtin___clear_cache(start,end); \
+}while(0)
+
 #define statistic_perf(test_no,if_no,loops_num,options,cycles) \
 do{\
   char *prt_format ="---[item%d]|API V%d|---Des:searching %d elments---|Cycles/Option:%d|cycles:%ld|options:%ld\n"; \
@@ -197,9 +202,9 @@ always_inline u64 bitmap_next_set(u64 ai,u64 ei)
 do{\
   ret = memcmp(out0,out1,MD5_DIGEST_LENGTH) ?1:0; \
   if(!ret){\
-    fformat (stdout,#if_fn0"|-> MATCH <-|"#if_fn1"\n",if_fn0,if_fn1);\
+    fformat (stdout,#if_fn0"|-> MATCH <-|"#if_fn1" ---[PASS]\n",if_fn0,if_fn1);\
   }else{\
-    fformat (stdout,#if_fn0"|-> DOES NOT MATCH <-|"#if_fn1"\n",if_fn0,if_fn1);\
+    fformat (stdout,#if_fn0"|-> MATCH <-|"#if_fn1" ---[FAILED]\n",if_fn0,if_fn1);\
     dump_md5(if_fn0,out0);dump_md5(if_fn1,out1);\
   }\
 }while(0)
@@ -344,13 +349,13 @@ int main(int argc,char *argv[])
 
   }else if(is_which_profile == 1){
       loop_cnt=1e6;
-   for (j = 0; j < loop_cnt; j++)
-    {
-        kv.key = j;
-        kv.value = j;
-        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-        
-    }
+      for (j = 0; j < loop_cnt; j++)
+        {
+            kv.key = j;
+            kv.value = j;
+            BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
+            
+        }
   }else if(is_which_profile == 2){
       loop_cnt=1e6;
       for (j = 0; j < loop_cnt; j++)
@@ -384,42 +389,17 @@ int main(int argc,char *argv[])
         
       }
      
+  }else{
+       loop_cnt=1e6;
+      for (j = 0; j < loop_cnt; j++)
+        {
+            kv.key = j;
+            kv.value = j;
+            BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
+            
+        }
+      
   }
-
-#if 0
-  u64 start;
-  u8 valid_key_idx = 0;
-  u64 loop_cnt = LOOP_CNT;  
-  options[0] = 0;
-  start = clib_cpu_time_now();
-  while(loop_cnt--){
-
-    
-    for(i=0;i<8;i++){ 
-      // if (BV (clib_bihash_search) (h, &kv0_8[i], &kv0_8[i]) < 0){
-       kv.key++;   
-      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){
-      }
-   
-
-      options[0]++;
-    }
- 
-  }
-  cycles[0] = clib_cpu_time_now() - start ;  
-  fformat (stdout,"---[item0]---searching 1 elments V0 valid_key_idx:%d--- options:%ld,cycles:%ld\n",
-      valid_key_idx,options[0],cycles[0]); 
- 
-    for(i=0;i<8;i++){
-     
-      // fformat (stdout, "kv0_8[%d].key:0x%lx,kv0_8[%d].value:0x%lx \n",i,kv0_8[i].key,i,kv0_8[i].value);
-      fformat (stdout, "kv0_8[%d].key:0x%lx,kv0_8[%d].value:0x%lx \n",i,kv.key,i,kv.value);
-
-    
-    }
-    
-#endif
-
   
   is_which = 0xFF;
   int is_consistency = 0xFF;
@@ -431,6 +411,7 @@ int main(int argc,char *argv[])
   if(is_which == 0xFF){
     fformat (stdout,"perf_test[ALL]...\n");
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+      // perf_clear_cache((char*)h->buckets, (char*)h->buckets+(h->nbuckets * sizeof (h->buckets[0])));
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
       perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
       fformat(stdout,"Summary:@%ld options \n\t"
