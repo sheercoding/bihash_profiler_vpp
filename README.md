@@ -110,7 +110,7 @@ cd ..
 
 ```
 
-## Clone and build vpp-toys
+## Clone and build vpp-apps
 
 ``` bash
 git clone https://github.com/sheercoding/testcases_for_vpp.git
