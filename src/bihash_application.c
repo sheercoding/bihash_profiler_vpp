@@ -80,14 +80,11 @@ do{\
 #define shift_one_key(kv,shift_nm)
 #endif
 
-#define perf_clear_cache(start,end) do{\
-fformat (stdout,"clear_cache,start:0x%lx,end:0x%lx\n",start,end);\
-  __builtin___clear_cache(start,end); \
-}while(0)
-
 #define statistic_perf(test_no,if_no,loops_num,options,cycles) \
 do{\
-  char *prt_format ="---[item%d]|API V%d|---Des:searching %d elments---|Cycles/Option:%d|cycles:%ld|options:%ld\n"; \
+  char *prt_format ="---[item%d]|API V%d|---Des:searching %d elments---"\
+                    "|Cycles/Option:%d|cycles:%ld|options:%ld\n"; \
+\
   fformat (stdout,prt_format, \
       test_no,\
       if_no,\
@@ -417,31 +414,22 @@ int main(int argc,char *argv[])
   if(is_which == 0xFF){
     fformat (stdout,"perf_test[ALL]...\n");
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-      // perf_clear_cache((char*)h->buckets, (char*)h->buckets+(h->nbuckets * sizeof (h->buckets[0])));
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
       perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+
+      #define inc_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
+      f64 base = cycles[0]/options[0];
       fformat(stdout,"Summary:@%ld options \n\t"
-                  "[items]----|Cycles/options| \n\t"
-                  "[item0]:     %d \n\t"
-                  "[item4]:     %d \n\t"
-                  "[item5]:     %d \n",
-             options[0],
-             cycles[0]/options[0],
-             cycles[4]/options[4],
-             cycles[5]/options[5]);
+                  "[items]----|Cycles/options|---|V0 as the benchmark:%0.2f| \n\t"
+                  "[item0]:     %d                      %.2f%%  \n\t"
+                  "[item4]:     %d                      %.2f%%  \n\t"
+                  "[item5]:     %d                      %.2f%%  \n",
+             options[0],base,
+             cycles[0]/options[0],inc_per(base,cycles[0]/options[0]),
+             cycles[4]/options[4],inc_per(base,cycles[4]/options[4]),
+             cycles[5]/options[5],inc_per(base,cycles[5]/options[5]));
 
-  #define inc_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
-
-  f64 base = cycles[0]/options[0];
-  fformat(stdout,"perf percentage:\t\n "
-                  "---|V0 as the benchmark:%0.2f| "
-                  "[item4]:%.2f%% |"
-                  "[item5]:%.2f%%  \n",
-            base,
-            inc_per(base,cycles[4]/options[4]),
-            inc_per(base,cycles[5]/options[5])
-            );
-
+ 
   }else if(is_which == 0x0 ){
       fformat (stdout,"perf_test[0]...\n");
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
