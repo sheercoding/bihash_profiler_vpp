@@ -1,6 +1,6 @@
 
 # Introduction 
-    These tool is using to measure performance of VPP's searching API.
+    These tool is using to measure performance of bihash's searching interface.
 Help users to get better know when and who have the better performance.
 
 # Measure performance
@@ -13,13 +13,11 @@ Help users to get better know when and who have the better performance.
         is_which_profile
                 |
     table |--- ID ---|----Description-----|-------------------supplementary-------|
-    row0  | 0        |  99000 cnts        |
-    row1  | 1        |  general case      |
-    row2  | 2        |  log2_page case    |
-    row3  | 3        |  exception case    | some key didn't exist in hash table   |
-    row4  | 11       |  2E7 cnts          |
-    row5  | 20       |  1E6 cnts          |
-    row6  | 21       |  linear case       |
+    row0  | 0x       |  99000 cnts        | generate case
+    row1  | 1x       |  general cases      | Key generate algorithm 'category_I_init', and counts of elements is from 1e3 to 1e7  |
+    row2  | 2x       |  log2_page cases    | category_II_init, others is refer to group1.
+    row3  | 3x       |  linear cases      | category_III_init,others is refer to group1.  |
+    row6  | 59       |  exception case    | some key didn't exist in hash table    |
     ---------------------------------------------------------------------------------
 
 ```
@@ -65,37 +63,75 @@ e.g., ./bin/bihash_application.icl 0 255 255
 
 # Example
 ```bash
-./bin/bihash_application.icl 20 255 255
-
 Stats:
-           alloc_add: 1000000
-                 add: 0
-           split_add: 0
-             replace: 0
+           alloc_add: 1290609
+                 add: 701890
+           split_add: 6231
+             replace: 1270
               update: 0
                  del: 0
             del_free: 0
-              linear: 0
-             resplit: 0
-   working_copy_lost: 0
-              splits: 0
-perf_test[ALL]...
----[item0]|API V0|---Des:searching 1000000 elments---|Cycles/Option:39|cycles:315335072|options:8000000
----[item4]|API V4|---Des:searching 1000000 elments---|Cycles/Option:21|cycles:175360856|options:8000000
----[item5]|API V5|---Des:searching 1000000 elments---|Cycles/Option:25|cycles:200267274|options:8000000
-Summary:@8000000 options
-        [items]----|Cycles/options|---|V0 as the benchmark:39.00|
-        [item0]:     39                      100.00%
-        [item4]:     21                      53.85%
-        [item5]:     25                      64.10%
+              linear: 22
+             resplit: 399
+   working_copy_lost: 7
+              splits: 140414067121184
+    splits[1]: 6031
+    splits[2]: 6804
+    splits[4]: 25
+    splits[8]: 1
+perf_test[ALL]...profile_id[20]
+---[item0]|API V0|---Des:searching 2000000 elments---|Cycles/Option:54|cycles:109085054|options:2000000
+---[item4]|API V4|---Des:searching 2000000 elments---|Cycles/Option:49|cycles:99225908|options:2000000
+---[item5]|API V5|---Des:searching 2000000 elments---|Cycles/Option:57|cycles:114506302|options:2000000
+Summary:@2000000 options,V0 as the benchmark on the Ratio column
+        [items]----|  CPO  |---| MOPS  |---|Ratio for OPS|---|  Cycles |---|  Options  |
+        [item0]:     54.00       42.17      100.00%           109085054          2000000
+        [item4]:     49.00       46.36      109.94%           99225908          2000000
+        [item5]:     57.00       40.17      95.27%           114506302          2000000
+        ...........|-------------------------------------------------------------------|
 consistency_test[ALL]...
 clib_bihash_search_8_8_stats|-> MATCH <-|clib_bihash_search_batch_v4_8_8_stats ---[PASS]
-
+clib_bihash_search_batch_v5_8_8_stats|-> MATCH <-|clib_bihash_search_batch_v4_8_8_stats ---[PASS]
 ```
 
 # Statistic perfs
+## batch profile
+refer to the profile batch script on profiles.
 
-![image](https://user-images.githubusercontent.com/94589984/160145887-f103e667-c840-4424-a60b-99a4a2ad99e9.png)
+```bash
+for a instance 
+profile_cateI_batch.sh 
+./bin/bihash_application.icl 1 255 5
+./bin/bihash_application.icl 2 255 5
+./bin/bihash_application.icl 3 255 5
+./bin/bihash_application.icl 4 255 5
+./bin/bihash_application.icl 5 255 5
+
+
+Profile 	key initType	elements num
+profile_id 01	category_I_init	1.00E+03
+profile_id 02	category_I_init	1.00E+04
+profile_id 03	category_I_init	1.00E+05
+profile_id 04	category_I_init	1.00E+06
+profile_id 05	category_I_init	1.00E+07
+		
+		
+"#define category_I_init(h,kv,amount) do{\
+int j=0;\
+for (j = 0; j < amount; j++)\
+    {\
+     \
+        kv.key = j;\
+        kv.value = j+1+0x7FFFFFFFFFFF;\
+\
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
+    \
+    }\
+}while(0)"		
+```	
+
+![image](https://user-images.githubusercontent.com/94589984/160235494-9752ad84-02e0-426c-ab06-e370f7d393da.png)
+
 
 # Build instructions
 
