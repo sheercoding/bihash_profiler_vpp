@@ -127,7 +127,15 @@ int BV (clib_bihash_search_batch_v5)
   *valid_key_idx = bitmap;
   return ret;
 }
-  
+
+int BV (clib_bihash_search_batch_v4)
+  (BVT (clib_bihash) * h,
+   BVT (clib_bihash_kv) * search_key, u8 key_mask,
+   BVT (clib_bihash_kv) * valuep,u8 * valid_key_idx)
+{
+  return BV (clib_bihash_search_inline_2_batch)(h,search_key,key_mask,valuep,valid_key_idx);
+}
+
 #define reset_keys(kvs,kv_sz,key_val) \
 do{\
     int i;\
@@ -141,6 +149,14 @@ do{\
    kv.key = key_val;\
 }while(0)
 
+#define insert_key_to_kvs(kvs,pos,newkey) \
+do{\
+  int kvs_sz;\
+  kvs_sz = sizeof(kvs)/sizeof(kvs[0]);\
+    if(pos < kvs_sz){\
+       kvs[pos].key = newkey; \
+    }\
+}while(0)
 
 #if 1
 #define shift_keys(kvs,kv_sz,shift_nm) \
@@ -161,7 +177,7 @@ do{\
 #define shift_one_key(kv,shift_nm)
 #endif
 
-#define statistic_perf(test_no,if_no,loops_num,options,cycles) \
+#define statistic_perf(test_no,if_no,num_of_elm,options,cycles) \
 do{\
   char *prt_format ="---[item%d]|API V%d|---Des:searching %d elments---"\
                     "|Cycles/Option:%d|cycles:%ld|options:%ld\n"; \
@@ -169,7 +185,7 @@ do{\
   fformat (stdout,prt_format, \
       test_no,\
       if_no,\
-      loops_num,\
+      num_of_elm,\
       cycles/options,\
       cycles,\
       options \
@@ -178,8 +194,8 @@ do{\
 
 #define perf_test_0(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num;\
-  u64 _loops_num = loops_num;\
+  u64 _loop_cnt = loops_num/8;\
+  u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start ; \
   reset_one_key(kv,0); \
@@ -191,19 +207,18 @@ do{ \
       if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
       }\
       shift_one_key(kv,1);\
-      /* options++ */ ; \
     }\
     options+=8 ;\
 \
   }while(--_loop_cnt);\
   cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,_loops_num,options,cycles);\
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
 #define perf_test_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num;\
-  u64 _loops_num = loops_num;\
+  u64 _loop_cnt = loops_num/8;\
+  u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start; \
   u8 key_mask = 8;\
@@ -215,17 +230,18 @@ do{ \
     if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
     }\
     shift_keys(kv,8,8);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
     options+=8; \
 \
   }while(--_loop_cnt);\
   cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,_loops_num,options,cycles);\
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
 #define perf_test_2(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num;\
-  u64 _loops_num = loops_num;\
+  u64 _loop_cnt = loops_num/8;\
+  u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start; \
   reset_keys(kv,8,0);\
@@ -235,12 +251,13 @@ do{ \
 \
     bihash_search_batch_v5(h,kv,8,kv);\
     shift_keys(kv,8,8);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
     options+=8; \
 \
   }while(--_loop_cnt);\
   \
   cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,_loops_num,options,cycles);\
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
 #define dump_md5(if_name,out0) do{\
@@ -380,54 +397,6 @@ do{\
 
 
 
-/**
-*
-*
-*  key-val schema
-*
-*               is_which_profile
-*                      |
-*           table |--- ID ---|----Description-----|-------------------supplementary-------|
-*           row0  | 0        |  99000 cnts        |
-*           row1  | 1        |  general case      |
-*           row2  | 2        |  log2_page case    |
-*           row3  | 3        |  exception case    | some key didn't exist in hash table   |
-*           row4  | 11       |  2E7 cnts          |
-*           row5  | 20       |  1E6 cnts          |
-*           row6  | 21       |  linear case       |
-*           ---------------------------------------------------------------------------------
-*/
-
-/*
-*
-*
-*       V0: clib_bihash_search,           benchmark
-*       V4: clib_bihash_search_batch_v4,  base V0, vectorize search dataflow on loading hash
-*                                         AVX512 intrinsic,judge condition simultaneously.
-*       V5: clib_bihash_search_batch_v5,  A macro wrap 8 original searching API, 
-*                                         no incremental  AVX512 in API.
-*
-*
-*/
-
-/**
-* 
-*  defination:  1st, select row by profile_idx on the schema, initial the hash table.
-*               2nd, select APIs from group{V0,V4,V5}, execute searching from previous initialized hash table,
-*                    respectively, output perfs result and get the statistic of perfs.
-*               3td, check the data consistency for respective search result, here, pick up each value to 
-*                    subsequent, inject found value to MD5 alogrithm, get the digest md5sum. observe the md5sum, 
-*                    if the md5sum are match,both of the compared API have the same outputs.
-* 
-*  syntax: ./bin/bihash_application.icl [profile_idx] [perf_cmp_id] [consistency_check_msk] 
-*
-*  e.g.,  ./bin/bihash_application.icl 0 255 255
-*          choose the first shcema (99000 cnts) to initial hash table;
-*          mark APIs {V0,V4,V5} available, to test respective perfs;
-*          mark all the combination{V0 vs V4, V5 vs V4} available, check their concistency.
-*           
-*          
-*/ 
 
 /*
 *
@@ -442,7 +411,7 @@ int main(int argc,char *argv[])
   u64 loop_cnt;
   u64 cycles[32];
   u64 options[32];
-  BVT (clib_bihash_kv) kv0_8[8];
+
   BVT (clib_bihash_kv) kv1_8[8];
   BVT (clib_bihash_kv) kv4_8[8];
   BVT (clib_bihash_kv) kv5_8[8];
@@ -461,7 +430,7 @@ int main(int argc,char *argv[])
   BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
 
   // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
-  
+  i=j=0;
   kv.key = 0;
 
   int is_which ;
@@ -471,6 +440,46 @@ int main(int argc,char *argv[])
   if(argc>1){
     is_which_profile = atoi(argv[1]);
   }
+
+
+#define category_I_init(h,kv,amount) do{\
+int j=0;\
+for (j = 0; j < amount; j++)\
+    {\
+     \
+        kv.key = j;\
+        kv.value = j+1+0x7FFFFFFFFFFF;\
+\
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
+    \
+    }\
+}while(0)
+
+#define category_II_init(h,kv,amount) do{\
+int j=0;\
+for (j = 0; j < amount; j++)\
+    {\
+     \
+        kv.key = (j+1000000*j)%(12208745);\
+        kv.value = j+1+0x7FFFFFFFFFFF;\
+\
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
+    \
+    }\
+}while(0)
+
+#define category_III_init(h,kv,amount) do{\
+int j=0;\
+for (j = 0; j < amount; j++)\
+    {\
+     \
+        kv.key = j*j;\
+        kv.value = j+1+0x7FFFFFFFFFFF;\
+\
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
+    \
+    }\
+}while(0)
 
   if(is_which_profile == 0){
     loop_cnt = 12374;
@@ -486,82 +495,181 @@ int main(int argc,char *argv[])
     }
 
   }else if(is_which_profile == 1){
-      loop_cnt=1e6;
-      for (j = 0; j < loop_cnt; j++)
-        {
-            kv.key = j;
-            kv.value = j;
-            BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-            
-        }
+     /**
+     * general case, scale: 1e3 
+     * 
+     */
+      loop_cnt=1000;
+      category_I_init(h,kv,loop_cnt);
   }else if(is_which_profile == 2){
-      loop_cnt=1e6;
-      for (j = 0; j < loop_cnt; j++)
-      {
-        kv.key = j;
-        kv.value = j;
-        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-        
-      }
-      add_collisions(h); // add collisions by special keys.
+     /**
+     * general case, scale: 1e4 
+     * 
+     */
+      loop_cnt=10000;
+      category_I_init(h,kv,loop_cnt);
+ 
   }else if(is_which_profile == 3){
-      loop_cnt=1e6;
-      for (j = 0; j < loop_cnt; j++)
-      {
-        kv.key = j;
-        kv.value = j;
-        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-      }
-        /* add one key isn't exist on initial*/
-        kv0_8[3].key = j+1000;
-        kv4_8[3].key = j+1000;
-        kv5_8[3].key = j+1000;
+    /**
+     * general case, scale: 1e5 
+     * 
+     */
+      loop_cnt=100000;
+      category_I_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 4){
+    /**
+     * general case, scale: 1e6 
+     * 
+     */
+      loop_cnt=1000000;
+      category_I_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 5){
+     /**
+     * general case, scale: 1e7 
+     * 
+     */
+      loop_cnt=10000000;
+      category_I_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 6){
+     /**
+     * general case, scale: 1e8
+     * Notice, consume too much memeory, required clib_mem_init big enough, or cause core dump.
+     */
+      loop_cnt=100000000;
+      category_I_init(h,kv,loop_cnt);
 
   }else if(is_which_profile == 11){
-      loop_cnt=2e7;
-      for (j = 0; j < loop_cnt; j++)
-      {
-        kv.key = j;
-        kv.value = j;
-        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-        
-      }
+   /**
+     * 
+     * general case, scale: 1e3 
+     * category II
+     */
+      loop_cnt=1000;
+      category_II_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 12){
+   /**
+     * 
+     * general case, scale: 1e4
+     * category II
+     */
+      loop_cnt=10000;
+      category_II_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 13){
+   /**
+     * 
+     * general case, scale: 1e5
+     * category II
+     */
+      loop_cnt=100000;
+      category_II_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 14){
+   /**
+     * 
+     * general case, scale: 1e6
+     * category II
+     */
+      loop_cnt=1000000;
+      category_II_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 15){
+   /**
+     * 
+     * general case, scale: 1e7
+     * category II
+     */
+      loop_cnt=10000000;
+      category_II_init(h,kv,loop_cnt);
      
   }else if(is_which_profile == 20){
+     /**
+     * linear case ,scale: 2e6 
+     * linear: 22
+     * category III
+     */
+      loop_cnt=2000000;
+      category_III_init(h,kv,loop_cnt);
 
-      loop_cnt=1e6;
-      for (j = 0; j < loop_cnt; j++)
-      {
-        kv.key = j+(j+100)^2;
-        kv.value = j;
-        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-        
-      }
      
   }else if(is_which_profile == 21){
-    /* linear case */
-    /* linear: 5031 */
-      loop_cnt=1e7;
-      for (j = 0; j < loop_cnt; j++)
-      {
-        kv.key = j*j;
-        kv.value = j;
-        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-        
-      }
-     
+    /*
+    * linear case ,scale: 3e6
+    * linear: 109 
+    * category III
+    * */
+      loop_cnt=3000000;
+      category_III_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 22){
+    /*
+    * linear case ,scale: 4e6
+    * linear: 338 
+    * category III
+    * */
+      loop_cnt=4000000;
+      category_III_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 23){
+    /*
+    * linear case ,scale: 5e6
+    * linear: 724 
+    * category III
+    * */
+      loop_cnt=5000000;
+      category_III_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 24){
+    /*
+    * linear case ,scale: 6e6
+    * linear: 1306 
+    * category III
+    * */
+      loop_cnt=6000000;
+      category_III_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 25){
+    /*
+    * linear case ,scale: 7e6
+    * linear: 2104 
+    * category III
+    * */
+      loop_cnt=7000000;
+      category_III_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 29){
+
+    /*
+    * linear case ,scale: 1e7
+    * linear: 5031 
+    * category III
+    * */
+
+      loop_cnt=10000000;
+      category_III_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 59){
+     /**
+     * general case, scale: 1e6
+     * is_which_profile open switch,some key didn't exist in hash table.
+     * @see the macro of perf_test_1
+     */
+      loop_cnt=1000000;
+      category_I_init(h,kv,loop_cnt);
+
   }else{
-    /* default */
-       loop_cnt=1e6;
-      for (j = 0; j < loop_cnt; j++)
-        {
-            kv.key = j;
-            kv.value = j;
-            BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-            
-        }
+    /* default 
+    *  general case, scale: 1e6 
+    */
+      loop_cnt=1000000;
+      category_I_init(h,kv,loop_cnt);
       
   }
+
   fformat (stdout, "Stats:\n%U", format_bihash_stats, h, 1 /* verbose */ );
 
   is_which = 0xFF;
@@ -572,22 +680,29 @@ int main(int argc,char *argv[])
 
  
   if(is_which == 0xFF){
-    fformat (stdout,"perf_test[ALL]...\n");
+      fformat (stdout,"perf_test[ALL]...profile_id[%d]\n",is_which_profile);
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
       perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
 
-      #define inc_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
-      f64 base = cycles[0]/options[0];
-      fformat(stdout,"Summary:@%ld options \n\t"
-                  "[items]----|Cycles/options|---|V0 as the benchmark:%0.2f| \n\t"
-                  "[item0]:     %d                      %.2f%%  \n\t"
-                  "[item4]:     %d                      %.2f%%  \n\t"
-                  "[item5]:     %d                      %.2f%%  \n",
-             options[0],base,
-             cycles[0]/options[0],inc_per(base,cycles[0]/options[0]),
-             cycles[4]/options[4],inc_per(base,cycles[4]/options[4]),
-             cycles[5]/options[5],inc_per(base,cycles[5]/options[5]));
+      f64 cycles_per_second = os_cpu_clock_frequency();
+      #define ST_1e6(cycles,freq) ( ((f64)(cycles)) / (freq) )
+      #define CPO(x,y) ( (f64)(cycles[(x)] / options[(y)]) )
+      #define OPS(x,y) ( (f64)(options[(x)])  / ST_1e6(1e6*cycles[(y)],cycles_per_second)  ) 
+      #define cpo_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
+
+      f64 base = OPS(0,0);
+      fformat(stdout,"Summary:@%ld options,V0 as the benchmark on the Ratio column \n\t"
+                  "[items]----|  CPO  |---| MOPS  |---|Ratio for OPS|---|  Cycles |---|  Options  | \n\t"
+                  "[item0]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
+                  "[item4]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
+                  "[item5]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
+                  "...........|-------------------------------------------------------------------| \n",
+             options[0],
+             CPO(0,0),OPS(0,0),cpo_per(base,OPS(0,0)),cycles[0],options[0],
+             CPO(4,4),OPS(4,4),cpo_per(base,OPS(4,4)),cycles[4],options[4],
+             CPO(5,5),OPS(5,5),cpo_per(base,OPS(5,5)),cycles[5],options[5]
+             );
 
  
   }else if(is_which == 0x0 ){
