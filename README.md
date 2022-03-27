@@ -3,6 +3,36 @@
     These tool is using to measure performance of bihash's searching interface.
 Help users to get better know when and who have the better performance.
 
+
+# Functionality
+## 1.check data consitency out of the searching APIs
+Abstract:
+	
+	KEYn-> V0 Api -> VALUPn =>	MD5_update-> .... -> MD_final-> md5sum_for_V0	
+	KEYn-> V4 Api -> VALUPn =>	MD5_update-> .... -> MD_final-> md5sum_for_V4
+	
+	compare md5sum_for_V0 with md5sum_for_V4, judge the data consistency by check the md5sum.
+## 2. Perf statistic
+### Definition:
+	  Cycles/Options: 
+	  ===============
+	  	Record start time(tm1) before execute searching, when finish workloads on the profiles define, 
+	  	stop and retrieve the time(tm2), delte=tm2-tm1. @see aquire cycles from os rerfer to clib_cpu_time_now();
+		
+	  Options/Second: 
+	  ===============
+	 	First, get the constant freq on the platform (cycles_per_second = os_cpu_clock_frequency()), 
+		the 'options' represent the wordloads, and record efforts of finish iterate all the elements in hashtable as Cycles/Option descripted. 
+		
+### formula:
+	CPO = cycles/options
+	OPS(PPS) = options/(cycles/cycles_per_second)
+			
+### for human readable:
+	OPS(MPPS) = options/1e6*(cycles/cycles_per_second) 
+			
+		
+
 # Measure performance
 
 ## test cases schema 
@@ -129,8 +159,17 @@ for (j = 0; j < amount; j++)\
     }\
 }while(0)"		
 ```	
+## Profile_typeI
 
-![image](https://user-images.githubusercontent.com/94589984/160235494-9752ad84-02e0-426c-ab06-e370f7d393da.png)
+![image](https://user-images.githubusercontent.com/94589984/160267726-333cd603-56b8-435d-98b7-87984f87e4db.png)
+
+## Profile_typeII
+
+![image](https://user-images.githubusercontent.com/94589984/160267701-37cd29bb-96ea-4717-8de1-e124d9fb8dea.png)
+
+## Profile_typeIII
+
+![image](https://user-images.githubusercontent.com/94589984/160267717-fc929679-195a-4cc3-bf1a-d0e185d7c073.png)
 
 
 # Build instructions
