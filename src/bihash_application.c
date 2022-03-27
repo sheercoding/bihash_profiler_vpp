@@ -535,10 +535,41 @@ for (j = 0; j < amount; j++)\
 
   }else if(is_which_profile == 6){
      /**
-     * general case, scale: 1e8
-     * Notice, consume too much memeory, required clib_mem_init big enough, or cause core dump.
+     * general case, scale: 3e6 
      */
-      loop_cnt=100000000;
+      loop_cnt=3000000;
+      category_I_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 7){
+     /**
+     * general case, scale: 4e6
+     * 
+     */
+      loop_cnt=4000000;
+      category_I_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 8){
+     /**
+     * general case, scale: 5e6 
+     * 
+     */
+      loop_cnt=5000000;
+      category_I_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 9){
+     /**
+     * general case, scale: 6e6 
+     * 
+     */
+      loop_cnt=6000000;
+      category_I_init(h,kv,loop_cnt);
+
+  }else if(is_which_profile == 10){
+     /**
+     * general case, scale: 7e6 
+     * 
+     */
+      loop_cnt=7000000;
       category_I_init(h,kv,loop_cnt);
 
   }else if(is_which_profile == 11){
