@@ -158,16 +158,26 @@ for (j = 0; j < amount; j++)\
     \
     }\
 }while(0)"		
-```	
-## Profile_typeI
+```
+# Gather raw-data 
+collect each test results:
+```bash
+after run:
+	./profiles/profile_cateI_batch.sh > test_log1.txt
+	./profiles/profile_cateII_batch.sh > test_log2.txt
+	./profiles/profile_cateIII_batch.sh > test_log3.txt
+```
+
+## Rendering 
+### for Profile_typeI
 
 ![image](https://user-images.githubusercontent.com/94589984/160267726-333cd603-56b8-435d-98b7-87984f87e4db.png)
 
-## Profile_typeII
+## for Profile_typeII
 
 ![image](https://user-images.githubusercontent.com/94589984/160267701-37cd29bb-96ea-4717-8de1-e124d9fb8dea.png)
 
-## Profile_typeIII
+## for Profile_typeIII
 
 ![image](https://user-images.githubusercontent.com/94589984/160267717-fc929679-195a-4cc3-bf1a-d0e185d7c073.png)
 
