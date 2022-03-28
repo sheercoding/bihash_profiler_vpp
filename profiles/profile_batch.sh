@@ -1,8 +1,5 @@
 
-
-./bin/bihash_application.icl 0 255 5
-./bin/bihash_application.icl 1 255 5 
-./bin/bihash_application.icl 2 255 5
-./bin/bihash_application.icl 3 255 5
-./bin/bihash_application.icl 21 255 5
-
+./profiles/profile_cateI_batch.sh > profile_cateI_batch.log
+./profiles/profile_cateII_batch.sh > profile_cateII_batch.log
+./profiles/profile_cateIII_batch.sh > profile_cateIII_batch.log
+./profiles/profile_cateI_supple_batch.sh > profile_cateI_supple_batch.log
