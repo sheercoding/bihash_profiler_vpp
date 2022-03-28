@@ -29,12 +29,20 @@
 #include <pthread.h>
 #include <openssl/md5.h>
 
-// #include <vppinfra/bihash_8_8.h>
+#define BIHASH_STAT_ENABLE  (0)
+
+#if BIHASH_STAT_ENABLE
 #include <vppinfra/bihash_8_8_stats.h>
+#else 
+#include <vppinfra/bihash_8_8.h>
+#endif
+
 #include <vppinfra/bihash_template.h>
 
 #include <vppinfra/bihash_template.c>
 
+
+#if BIHASH_STAT_ENABLE
 typedef struct
 {
   u64 alloc_add;
@@ -87,6 +95,8 @@ inc_stats_callback (BVT (clib_bihash) * h, int stat_id, u64 count)
   vec_validate (for_splits->splits, count);
   for_splits->splits[count] += 1;
 }
+
+#endif
 
 
 int add_collisions( BVT (clib_bihash) * h);
@@ -427,7 +437,11 @@ int main(int argc,char *argv[])
   clib_mem_init (0, 1ULL << 30);
 
   BV (clib_bihash_init) (h, "test", user_buckets, user_memory_size);
+
+  #if BIHASH_STAT_ENABLE
   BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
+  #endif
+
 
   // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
   i=j=0;
@@ -700,8 +714,10 @@ for (j = 0; j < amount; j++)\
       category_I_init(h,kv,loop_cnt);
       
   }
-
+  
+#if BIHASH_STAT_ENABLE
   fformat (stdout, "Stats:\n%U", format_bihash_stats, h, 1 /* verbose */ );
+#endif
 
   is_which = 0xFF;
   int is_consistency = 0xFF;
