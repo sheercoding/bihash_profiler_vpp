@@ -56,13 +56,13 @@ Abstract the methods:
 
         is_which_profile
                 |
-    table |--- ID ---|----Description-----|-------------------supplementary-------|
-    row0  | 0x       |  99000 cnts        | generate case
-    row1  | 1x       |  general cases      | Key generate algorithm 'category_I_init', and counts of elements is from 1e3 to 1e7  |
-    row2  | 2x       |  log2_page cases    | category_II_init, others is refer to group1.
-    row3  | 3x       |  linear cases      | category_III_init,others is refer to group1.  |
-    row6  | 59       |  exception case    | some key didn't exist in hash table    |
-    ---------------------------------------------------------------------------------
+    table |--- ID ---|----Description-----|---------------------supplementary-------------------|
+    row0  | 0x       |  Profile TYPEI	  | keys algorithm I, scale∈{1e3,1e4,1e5,1e6,1e7} 	|
+    row1  | 1x       |  Profile TYPEII    | keys algorithm II, scale∈{1e3,1e4,1e5,1e6,1e7} 	|
+    row2  | 2x       |  Profile TYPEIII   | keys algorithm III, scale∈{3e6,4e6,5e6,6e6,7e6} 	|
+    row3  | 3x       |  Profile TYPEV     | keys algorithm V, scale∈{1e3,1e4,1e5,1e6,1e7}  	|
+    row6  | 59       |  exception case    | some key didn't exist in hash table    	      	|
+    --------------------------------------------------------------------------------------------|
 
 ```
 
