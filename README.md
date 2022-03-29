@@ -13,6 +13,20 @@ Abstract:
 	
 	compare md5sum_for_V0 with md5sum_for_V4, judge the data consistency by check the md5sum.
 ## 2. Perf statistic
+Abstract the methods:
+					 Abstract the methods									
+														
+														
+									Profile									
+				   Profile TYPEI	Profile TYPEII	Profile TYPEIII	Profile TYPEV						
+		Objective API	   profile_id 01	profile_id 11	profile_id 21	profile_id 31		Results				
+	Single	Vectorized Burst X profile_id 02	profile_id 12	profile_id 22	profile_id 32	= cateI	cateII	cateIII	cateV	
+				   profile_id 03	profile_id 13	profile_id 23	profile_id 33						
+				   profile_id 04	profile_id 14	profile_id 24	profile_id 34						
+				   profile_id 05	profile_id 15	profile_id 25	profile_id 35						
+														
+
+
 ### Definition:
 	  Cycles/Options: 
 	  ===============
