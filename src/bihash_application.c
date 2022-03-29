@@ -500,7 +500,7 @@ int main(int argc,char *argv[])
   // clib_mem_init_with_page_size (1ULL << 30, CLIB_MEM_PAGE_SZ_1G);
   clib_mem_init (0, 1ULL << 30);
 
-  BV (clib_bihash_init) (h, "test", user_buckets, user_memory_size);
+  BV (clib_bihash_init) (h, "bihash-profiler", user_buckets, user_memory_size);
 
   #if BIHASH_ENABLE_STATS
   BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
@@ -857,8 +857,9 @@ for (j = 0; j < amount; j++)\
   fformat (stdout, "Stats:\n%U", format_bihash_stats, h, 1 /* verbose */ );
 #endif
 
+#define DEBUG_BIHASH_IF (1)
 #if DEBUG_BIHASH_IF
-  fformat (stdout, "Stats:\n%U", BV(format_bihash), h, 1 /* verbose */ );
+  fformat (stdout, "Stats:\n%U", BV(format_bihash), h, 0 /* verbose */ );
 #endif
 
   f64 base;
@@ -869,18 +870,33 @@ for (j = 0; j < amount; j++)\
   #define OPS(x,y) ( (f64)(options[(x)])  / ST_1e6(1e6*cycles[(y)],cycles_per_second)  ) 
   #define cpo_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
 
+#if 0
+/**
+ * Disable the row id, 
+ * for the convenience of pasting to excel tables
+ * 
+ */
+  #define table_head_line "[items]----|  CPO  |---| MOPS  |---|Ratio for OPS|---|  Cycles |---|  Options  | \n\t"
   #define new_perf_data_line "[item%d]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
   #define new_data_line(cycles_id,options_id)    cycles_id,CPO(cycles_id,options_id),OPS(options_id,cycles_id),cpo_per(base,OPS(options_id,cycles_id)),cycles[cycles_id],options[options_id]
+  #define table_end_line "...........|-------------------------------------------------------------------| \n"
+#else
+  #define table_head_line "CPO  |---| MOPS  |---|Ratio for OPS|---|  Cycles |---|  Options  | \n"
+  #define new_perf_data_line "%.2f       %.2f      %.2f%%           %ld          %ld \n"
+  #define new_data_line(cycles_id,options_id)    CPO(cycles_id,options_id),OPS(options_id,cycles_id),cpo_per(base,OPS(options_id,cycles_id)),cycles[cycles_id],options[options_id]
+  #define table_end_line "-------------------------------------------------------------------| \n"
+
+#endif
 
   #define format_prt_compared(base_cycles_id,base_options_id) \
   do{\
   base = OPS(base_cycles_id,base_options_id);\
-  fformat(stdout,"Summary:@%ld options,V0 as the baseline \n\t"\
-            "[items]----|  CPO  |---| MOPS  |---|Ratio for OPS|---|  Cycles |---|  Options  | \n\t"\
+  fformat(stdout,"Summary:@%ld options,V0 as the baseline \n"\
+            table_head_line\
             new_perf_data_line\
             new_perf_data_line\
             new_perf_data_line\
-            "...........|-------------------------------------------------------------------| \n",\
+            table_end_line,\
         options[0],\
         new_data_line(0,0),\
         new_data_line(4,4),\
