@@ -143,8 +143,26 @@ int BV (clib_bihash_search_batch_v4)
    BVT (clib_bihash_kv) * search_key, u8 key_mask,
    BVT (clib_bihash_kv) * valuep,u8 * valid_key_idx)
 {
-  return BV (clib_bihash_search_inline_2_batch)(h,search_key,key_mask,valuep,valid_key_idx);
+  // return BV (clib_bihash_search_inline_2_batch)(h,search_key,key_mask,valuep,valid_key_idx);
+  return BV (clib_bihash_search_inline_2_batch_with_ops)(h,search_key,key_mask,valuep,valid_key_idx,2);
 }
+
+int BV (clib_bihash_search_batch_v4_0)
+  (BVT (clib_bihash) * h,
+   BVT (clib_bihash_kv) * search_key, u8 key_mask,
+   BVT (clib_bihash_kv) * valuep,u8 * valid_key_idx)
+{
+  return BV (clib_bihash_search_inline_2_batch_with_ops)(h,search_key,key_mask,valuep,valid_key_idx,0);
+}
+
+int BV (clib_bihash_search_batch_v4_1)
+  (BVT (clib_bihash) * h,
+   BVT (clib_bihash_kv) * search_key, u8 key_mask,
+   BVT (clib_bihash_kv) * valuep,u8 * valid_key_idx)
+{
+  return BV (clib_bihash_search_inline_2_batch_with_ops)(h,search_key,key_mask,valuep,valid_key_idx,1);
+}
+
 
 #define reset_keys(kvs,kv_sz,key_val) \
 do{\
@@ -425,6 +443,8 @@ int main(int argc,char *argv[])
   BVT (clib_bihash_kv) kv1_8[8];
   BVT (clib_bihash_kv) kv4_8[8];
   BVT (clib_bihash_kv) kv5_8[8];
+  BVT (clib_bihash_kv) kv40_8[8];
+  BVT (clib_bihash_kv) kv41_8[8];
   BVT (clib_bihash) * h;
 
   u32 user_buckets = 1228800;
@@ -714,7 +734,7 @@ for (j = 0; j < amount; j++)\
       category_I_init(h,kv,loop_cnt);
       
   }
-  
+
 #if BIHASH_STAT_ENABLE
   fformat (stdout, "Stats:\n%U", format_bihash_stats, h, 1 /* verbose */ );
 #endif
@@ -730,6 +750,9 @@ for (j = 0; j < amount; j++)\
       fformat (stdout,"perf_test[ALL]...profile_id[%d]\n",is_which_profile);
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+      perf_test_1(6,6,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4_0),h,kv40_8,kv40_8);
+      perf_test_1(7,7,loop_cnt,options[7],cycles[7],BV (clib_bihash_search_batch_v4_1),h,kv41_8,kv41_8);
+
       perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
 
       f64 cycles_per_second = os_cpu_clock_frequency();
@@ -744,21 +767,31 @@ for (j = 0; j < amount; j++)\
                   "[item0]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
                   "[item4]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
                   "[item5]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
+                  "[it4_0]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
+                  "[it4_1]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
                   "...........|-------------------------------------------------------------------| \n",
              options[0],
              CPO(0,0),OPS(0,0),cpo_per(base,OPS(0,0)),cycles[0],options[0],
              CPO(4,4),OPS(4,4),cpo_per(base,OPS(4,4)),cycles[4],options[4],
-             CPO(5,5),OPS(5,5),cpo_per(base,OPS(5,5)),cycles[5],options[5]
+             CPO(5,5),OPS(5,5),cpo_per(base,OPS(5,5)),cycles[5],options[5],
+             CPO(6,6),OPS(6,6),cpo_per(base,OPS(6,6)),cycles[6],options[6],
+             CPO(7,7),OPS(7,7),cpo_per(base,OPS(7,7)),cycles[7],options[7]
              );
 
  
-  }else if(is_which == 0x0 ){
+  }else if(is_which == 0 ){
       fformat (stdout,"perf_test[0]...\n");
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-  }else if(is_which == 0x4){
+  }else if(is_which == 4){
       fformat (stdout,"perf_test[4]...\n");
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-  }else if(is_which == 0x5){
+  }else if(is_which == 40){
+      fformat (stdout,"perf_test[40]...\n");
+      perf_test_1(6,6,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4_0),h,kv40_8,kv40_8);
+  }else if(is_which == 41){
+      fformat (stdout,"perf_test[41]...\n");
+      perf_test_1(7,7,loop_cnt,options[7],cycles[7],BV (clib_bihash_search_batch_v4_1),h,kv41_8,kv41_8);
+  }else if(is_which == 5){
       fformat (stdout,"perf_test[5]...\n");
       perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
   }
@@ -784,6 +817,25 @@ for (j = 0; j < amount; j++)\
                           kv1_8,kv4_8,
                           BV (clib_bihash_search_batch_v5),
                           BV (clib_bihash_search_batch_v4));
+
+      consistency_test_0( 0,
+                          6,
+                          loop_cnt,
+                          h,
+                          kv,
+                          kv40_8,
+                          BV (clib_bihash_search),
+                          BV (clib_bihash_search_batch_v4_0));
+
+      consistency_test_0( 0,
+                          6,
+                          loop_cnt,
+                          h,
+                          kv,
+                          kv41_8,
+                          BV (clib_bihash_search),
+                          BV (clib_bihash_search_batch_v4_1));
+
   }else if(is_consistency == 0){
       fformat (stdout,"consistency_test[0]...\n");
       consistency_test_0( 0,
