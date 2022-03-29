@@ -25,14 +25,15 @@
 #include <vppinfra/cache.h>
 #include <vppinfra/error.h>
 #include <sys/resource.h>
+#include <stdlib.h>
 #include <stdio.h>
 #include <pthread.h>
 #include <openssl/md5.h>
 
-#define BIHASH_STAT_ENABLE  (0)
+#define BIHASH_USING_8_8_STATS  (0)
 
-#if BIHASH_STAT_ENABLE
-#include <vppinfra/bihash_8_8_stats.h>
+#if BIHASH_USING_8_8_STATS
+#include <vppinfra/bihash_8_8_stats.h> //#defined BIHASH_ENABLE_STATS
 #else 
 #include <vppinfra/bihash_8_8.h>
 #endif
@@ -42,7 +43,7 @@
 #include <vppinfra/bihash_template.c>
 
 
-#if BIHASH_STAT_ENABLE
+#if BIHASH_ENABLE_STATS
 typedef struct
 {
   u64 alloc_add;
@@ -118,7 +119,7 @@ do{\
     for(i=0;i<kv_sz;i++){\
       if (BV (clib_bihash_search) (h, &kvs[i], &valuep[i]) < 0){\
       }else{\
-      USER_BIT_SET(bitmap,i);\
+        USER_BIT_SET(bitmap,i);\
         cnt++;\
       }\
     }\
@@ -179,7 +180,22 @@ do{\
 
 #define shift_one_key(kv,shift_nm) \
 do{\
-    kv.key+=shift_nm;\
+    kv.key += shift_nm;\
+}while(0)
+
+#define random_keys(kvs,kv_sz,ops) \
+do{\
+    int i;\
+    if(ops>0) srandom(ops);\
+    for(i=0;i<kv_sz;i++){\
+        kvs[i].key = random(); \
+    }\
+}while(0)
+
+#define random_one_key(kv,ops) \
+do{\
+  if(ops>0) srandom(ops);\
+    kv.key = random();\
 }while(0)
 
 #else
@@ -189,7 +205,7 @@ do{\
 
 #define statistic_perf(test_no,if_no,num_of_elm,options,cycles) \
 do{\
-  char *prt_format ="---[item%d]|API V%d|---Des:searching %d elments---"\
+  char *prt_format ="---[item%d]|API V%d|---Dec:searching %d elments---"\
                     "|Cycles/Option:%d|cycles:%ld|options:%ld\n"; \
 \
   fformat (stdout,prt_format, \
@@ -225,13 +241,37 @@ do{ \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
+#define perf_test_0_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/8;\
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start ; \
+  reset_one_key(kv,0); \
+  start = clib_cpu_time_now();\
+  do{\
+\
+    for(i=0;i<8;i++){\
+      \
+      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
+      }\
+      random_one_key(kv,0);\
+    }\
+    options+=8 ;\
+\
+  }while(--_loop_cnt);\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+
 #define perf_test_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
   u64 _loop_cnt = loops_num/8;\
   u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start; \
-  u8 key_mask = 8;\
+  u8 key_mask = 0xFF;\
   u8 valid_key_idx = 0; \
   reset_keys(kv,8,0);\
   start = clib_cpu_time_now();\
@@ -240,6 +280,29 @@ do{ \
     if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
     }\
     shift_keys(kv,8,8);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
+    options+=8; \
+\
+  }while(--_loop_cnt);\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+#define perf_test_1_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/8;\
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start; \
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  reset_keys(kv,8,0);\
+  start = clib_cpu_time_now();\
+  do{\
+\
+    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    random_keys(kv,8,0);\
     if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
     options+=8; \
 \
@@ -269,6 +332,7 @@ do{ \
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
+
 
 #define dump_md5(if_name,out0) do{\
 \
@@ -438,9 +502,16 @@ int main(int argc,char *argv[])
 
   BV (clib_bihash_init) (h, "test", user_buckets, user_memory_size);
 
-  #if BIHASH_STAT_ENABLE
+  #if BIHASH_ENABLE_STATS
   BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
   #endif
+
+  u32 fix_seed=0;
+
+  // if(argc > 4){
+    fix_seed = time(0);
+  // }
+  srandom(fix_seed);
 
 
   // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
@@ -489,6 +560,19 @@ for (j = 0; j < amount; j++)\
      \
         kv.key = j*j;\
         kv.value = j+1+0x7FFFFFFFFFFF;\
+\
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
+    \
+    }\
+}while(0)
+
+#define category_IV_init(h,kv,amount) do{\
+int j=0;\
+for (j = 0; j < amount; j++)\
+    {\
+     \
+        kv.key = random();\
+        kv.value = j;\
 \
         BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
     \
@@ -697,6 +781,60 @@ for (j = 0; j < amount; j++)\
       loop_cnt=10000000;
       category_III_init(h,kv,loop_cnt);
 
+  }else if(is_which_profile == 31){
+   /**
+     * 
+     * random case, scale: 1e3
+     * category IV
+     */
+      loop_cnt=1000;
+      category_IV_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 32){
+   /**
+     * 
+     * random case, scale: 1e4
+     * category IV
+     */
+      loop_cnt=10000;
+      category_IV_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 33){
+   /**
+     * 
+     * random case, scale: 1e5
+     * category IV
+     */
+      loop_cnt=100000;
+      category_IV_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 34){
+   /**
+     * 
+     * random case, scale: 1e6
+     * category IV
+     */
+      loop_cnt=1000000;
+      category_IV_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 35){
+   /**
+     * 
+     * random case, scale: 1e7
+     * category IV
+     */
+      loop_cnt=10000000;
+      category_IV_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 36){
+   /**
+     * 
+     * random case, scale: 3e6
+     * category IV
+     */
+      loop_cnt=3000000;
+      category_IV_init(h,kv,loop_cnt);
+     
   }else if(is_which_profile == 59){
      /**
      * general case, scale: 1e6
@@ -715,9 +853,40 @@ for (j = 0; j < amount; j++)\
       
   }
   
-#if BIHASH_STAT_ENABLE
+#if BIHASH_ENABLE_STATS
   fformat (stdout, "Stats:\n%U", format_bihash_stats, h, 1 /* verbose */ );
 #endif
+
+#if DEBUG_BIHASH_IF
+  fformat (stdout, "Stats:\n%U", BV(format_bihash), h, 1 /* verbose */ );
+#endif
+
+  f64 base;
+  f64 cycles_per_second;
+  cycles_per_second = os_cpu_clock_frequency();
+  #define ST_1e6(cycles,freq) ( ((f64)(cycles)) / (freq) )
+  #define CPO(x,y) ( (f64)(cycles[(x)] / options[(y)]) )
+  #define OPS(x,y) ( (f64)(options[(x)])  / ST_1e6(1e6*cycles[(y)],cycles_per_second)  ) 
+  #define cpo_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
+
+  #define new_perf_data_line "[item%d]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
+  #define new_data_line(cycles_id,options_id)    cycles_id,CPO(cycles_id,options_id),OPS(options_id,cycles_id),cpo_per(base,OPS(options_id,cycles_id)),cycles[cycles_id],options[options_id]
+
+  #define format_prt_compared(base_cycles_id,base_options_id) \
+  do{\
+  base = OPS(base_cycles_id,base_options_id);\
+  fformat(stdout,"Summary:@%ld options,V0 as the baseline \n\t"\
+            "[items]----|  CPO  |---| MOPS  |---|Ratio for OPS|---|  Cycles |---|  Options  | \n\t"\
+            new_perf_data_line\
+            new_perf_data_line\
+            new_perf_data_line\
+            "...........|-------------------------------------------------------------------| \n",\
+        options[0],\
+        new_data_line(0,0),\
+        new_data_line(4,4),\
+        new_data_line(5,5)\
+        );\
+  }while(0)
 
   is_which = 0xFF;
   int is_consistency = 0xFF;
@@ -727,31 +896,19 @@ for (j = 0; j < amount; j++)\
 
  
   if(is_which == 0xFF){
+     /**
+     * 
+     * V0 as baseline, compare V4 and V5 with increased searching keys.
+     * Observe the 'ratio' metric.
+     */
       fformat (stdout,"perf_test[ALL]...profile_id[%d]\n",is_which_profile);
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-      perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+      perf_test_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+      // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+    
+      format_prt_compared(0,0);
 
-      f64 cycles_per_second = os_cpu_clock_frequency();
-      #define ST_1e6(cycles,freq) ( ((f64)(cycles)) / (freq) )
-      #define CPO(x,y) ( (f64)(cycles[(x)] / options[(y)]) )
-      #define OPS(x,y) ( (f64)(options[(x)])  / ST_1e6(1e6*cycles[(y)],cycles_per_second)  ) 
-      #define cpo_per(b,t) ( (b)>0 ? (t)*100/(b): 0)
-
-      f64 base = OPS(0,0);
-      fformat(stdout,"Summary:@%ld options,V0 as the benchmark on the Ratio column \n\t"
-                  "[items]----|  CPO  |---| MOPS  |---|Ratio for OPS|---|  Cycles |---|  Options  | \n\t"
-                  "[item0]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
-                  "[item4]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
-                  "[item5]:     %.2f       %.2f      %.2f%%           %ld          %ld \n\t"
-                  "...........|-------------------------------------------------------------------| \n",
-             options[0],
-             CPO(0,0),OPS(0,0),cpo_per(base,OPS(0,0)),cycles[0],options[0],
-             CPO(4,4),OPS(4,4),cpo_per(base,OPS(4,4)),cycles[4],options[4],
-             CPO(5,5),OPS(5,5),cpo_per(base,OPS(5,5)),cycles[5],options[5]
-             );
-
- 
   }else if(is_which == 0x0 ){
       fformat (stdout,"perf_test[0]...\n");
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
@@ -760,10 +917,26 @@ for (j = 0; j < amount; j++)\
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
   }else if(is_which == 0x5){
       fformat (stdout,"perf_test[5]...\n");
-      perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+      // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+      perf_test_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+
+  }else if(is_which == 0x6){
+    /**
+     * 
+     * V0 as baseline, compare V4 and V5 with random searching keys.
+     * Observe the 'ratio' metric.
+     */
+    fformat (stdout,"perf_test[6]...profile_id[%d]\n",is_which_profile);
+
+    perf_test_0_1(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+    perf_test_1_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+    perf_test_1_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+
+    format_prt_compared(0,0);
+
   }
 
-  if(argc >3){
+  if(argc > 3) {
     is_consistency = atoi(argv[3]);
   }
  
@@ -879,4 +1052,3 @@ int add_collisions( BVT (clib_bihash) * h)
 
     return 0;
 }
-
