@@ -1,6 +1,11 @@
 
-./bin/bihash_application.icl 31 255 5
-./bin/bihash_application.icl 32 255 5
-./bin/bihash_application.icl 33 255 5
-./bin/bihash_application.icl 34 255 5
-./bin/bihash_application.icl 35 255 5
+./bin/bihash_application.icl 40 255 5
+./bin/bihash_application.icl 41 255 5
+./bin/bihash_application.icl 42 255 5
+./bin/bihash_application.icl 43 255 5
+./bin/bihash_application.icl 44 255 5
+./bin/bihash_application.icl 45 255 5
+./bin/bihash_application.icl 46 255 5
+./bin/bihash_application.icl 47 255 5
+./bin/bihash_application.icl 48 255 5
+./bin/bihash_application.icl 49 255 5

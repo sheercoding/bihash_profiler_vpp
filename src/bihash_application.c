@@ -459,7 +459,7 @@ do{\
           MD5_Update(&c[1], buf, strlen(buf));\
         }\
     }\
-    shift_keys(kv0,8,8);\
+    shift_keys(kv0,8,8);/* proof the diffrence, change to random_keys(kv0,8,8); */\
     shift_keys(kv1,8,8);\
   }while(--_loop_cnt);\
   \
@@ -491,7 +491,10 @@ int main(int argc,char *argv[])
   BVT (clib_bihash_kv) kv5_8[8];
   BVT (clib_bihash) * h;
 
-  u32 user_buckets = 1228800;
+  // u32 user_buckets = 1228800;
+    // u32 user_buckets = 614400;
+    u32 user_buckets = 307200;
+
   u32 user_memory_size = 209715200;
 
   BVT (clib_bihash) hash={0};
@@ -572,6 +575,19 @@ for (j = 0; j < amount; j++)\
     {\
      \
         kv.key = random();\
+        kv.value = j;\
+\
+        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
+    \
+    }\
+}while(0)
+
+#define category_V_init(h,kv,amount) do{\
+int j=0;\
+for (j = 0; j < amount; j++)\
+    {\
+     \
+        kv.key = j*amount;\
         kv.value = j;\
 \
         BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );\
@@ -835,6 +851,106 @@ for (j = 0; j < amount; j++)\
       loop_cnt=3000000;
       category_IV_init(h,kv,loop_cnt);
      
+  }else if(is_which_profile == 40){
+   /**
+     * 
+     * random case, scale: 12e4
+     * category V
+     * bucket_usage_rate ~ 10%
+     */
+      loop_cnt=120000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 41){
+   /**
+     * 
+     * random case, scale: 25e4
+     * category V
+     * bucket_usage_rate ~ 20%
+     */
+      loop_cnt=250000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 42){
+   /**
+     * 
+     * random case, scale: 36e4
+     * category V
+     * bucket_usage_rate ~ 30%
+     */
+      loop_cnt=360000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 43){
+   /**
+     * 
+     * random case, scale: 5e5
+     * category V
+     * bucket_usage_rate ~ 40%
+     */
+      loop_cnt=500000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 44){
+   /**
+     * 
+     * random case, scale: 7e5
+     * category V
+     * bucket_usage_rate ~ 50%
+     */
+      loop_cnt=700000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 45){
+   /**
+     * 
+     * random case, scale: 10e5
+     * category V
+     * bucket_usage_rate ~ 60%
+     */
+      loop_cnt=1000000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 46){
+   /**
+     * 
+     * random case, scale: 13e5
+     * category V
+     * bucket_usage_rate ~ 70%
+     */
+      loop_cnt=1300000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 47){
+   /**
+     * 
+     * random case, scale: 19e5
+     * category V
+     * bucket_usage_rate ~ 80%
+     */
+      loop_cnt=1900000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 48){
+   /**
+     * 
+     * random case, scale: 25e5
+     * category V
+     * bucket_usage_rate ~  90%
+     */
+      loop_cnt=2500000;
+      category_V_init(h,kv,loop_cnt);
+     
+  }else if(is_which_profile == 49){
+   /**
+     * 
+     * random case, scale: 35e5
+     * category V
+     * bucket_usage_rate  ~ 95%
+     */
+      loop_cnt=3500000;
+      category_V_init(h,kv,loop_cnt);
+     
   }else if(is_which_profile == 59){
      /**
      * general case, scale: 1e6
@@ -846,21 +962,30 @@ for (j = 0; j < amount; j++)\
 
   }else{
     /* default 
-    *  general case, scale: 1e6 
+    *  category V, scale: 5e5
     */
-      loop_cnt=1000000;
-      category_I_init(h,kv,loop_cnt);
+    loop_cnt=500000;
+    category_V_init(h,kv,loop_cnt);
       
   }
   
 #if BIHASH_ENABLE_STATS
-  fformat (stdout, "Stats:\n%U", format_bihash_stats, h, 1 /* verbose */ );
+  
+  fformat (stdout, "Stats:\n%U", BV(format_bihash), h, 1 /* verbose */ );
+
 #endif
 
 #define DEBUG_BIHASH_IF (1)
 #if DEBUG_BIHASH_IF
+
   fformat (stdout, "Stats:\n%U", BV(format_bihash), h, 0 /* verbose */ );
+  fformat (stdout, "nbuckets:%d,log2_nbuckets:%d \n", 
+          h->nbuckets,h->log2_nbuckets );
+  fformat (stdout, "buckets:%ld,bucket_usage_rate:%.2f%%,bucket_avx512_flag:%d \n", 
+          h->active_buckets,100*h->bucket_usage_rate,h->bucket_avx512_flag );
+
 #endif
+  
 
   f64 base;
   f64 cycles_per_second;

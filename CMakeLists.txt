@@ -26,17 +26,18 @@ set(CMAKE_C_COMPILER_NAMES clang-11 clang-9 gcc-9 cc)
 project(vpp-apps LANGUAGES C)
 
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
-# find_path(VPP_RELEASE_INSTALL_PATH
-# 	  NAMES include/vppinfra/clib.h
-# 	  PATHS
-# 	    ${VPP_PATH}/build-root/install-vpp-native/vpp
-# 	    ${CMAKE_SOURCE_DIR}/../vpp/build-root/install-vpp-native/vpp )
-
 find_path(VPP_RELEASE_INSTALL_PATH
-    NAMES include/vppinfra/clib.h
-    PATHS
-        ${VPP_PATH}/build-root/install-vpp_debug-native/vpp
-        ${CMAKE_SOURCE_DIR}/../vpp/build-root/install-vpp_debug-native/vpp )
+	  NAMES include/vppinfra/clib.h
+	  PATHS
+	    ${VPP_PATH}/build-root/install-vpp-native/vpp
+	    ${CMAKE_SOURCE_DIR}/../vpp/build-root/install-vpp-native/vpp )
+
+# find_path(VPP_RELEASE_INSTALL_PATH
+#     NAMES include/vppinfra/clib.h
+#     PATHS
+#         ${VPP_PATH}/build-root/install-vpp_debug-native/vpp
+#         ${CMAKE_SOURCE_DIR}/../vpp/build-root/install-vpp_debug-native/vpp )
+
 
 if(NOT VPP_RELEASE_INSTALL_PATH)
   message(FATAL_ERROR "Cannot find VPP tree. Try to specify -DVPP_PATH:PATH=</path/to/vpp/dir>")
