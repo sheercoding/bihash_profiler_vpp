@@ -189,6 +189,7 @@ do{\
     if(ops>0) srandom(ops);\
     for(i=0;i<kv_sz;i++){\
         kvs[i].key = random(); \
+        /* fformat(stdout,"key:%x \n",kvs[i].key); */ \
     }\
 }while(0)
 
@@ -254,6 +255,7 @@ do{ \
     for(i=0;i<8;i++){\
       \
       if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
+       /* fformat(stdout,"clib_bihash_search not found, key:%x \n",kv.key); */ \
       }\
       random_one_key(kv,0);\
     }\
@@ -459,7 +461,7 @@ do{\
           MD5_Update(&c[1], buf, strlen(buf));\
         }\
     }\
-    shift_keys(kv0,8,8);/* proof the diffrence, change to random_keys(kv0,8,8); */\
+    shift_keys(kv0,8,8);/* proof the diffrence, change 'shift_keys(...)' to 'random_keys(...)'; */\
     shift_keys(kv1,8,8);\
   }while(--_loop_cnt);\
   \
@@ -492,8 +494,8 @@ int main(int argc,char *argv[])
   BVT (clib_bihash) * h;
 
   // u32 user_buckets = 1228800;
-    // u32 user_buckets = 614400;
-    u32 user_buckets = 307200;
+    u32 user_buckets = 614400;
+    // u32 user_buckets = 307200;
 
   u32 user_memory_size = 209715200;
 
@@ -979,10 +981,13 @@ for (j = 0; j < amount; j++)\
 #if DEBUG_BIHASH_IF
 
   fformat (stdout, "Stats:\n%U", BV(format_bihash), h, 0 /* verbose */ );
+
+#if 0
   fformat (stdout, "nbuckets:%d,log2_nbuckets:%d \n", 
           h->nbuckets,h->log2_nbuckets );
   fformat (stdout, "buckets:%ld,bucket_usage_rate:%.2f%%,bucket_avx512_flag:%d \n", 
           h->active_buckets,100*h->bucket_usage_rate,h->bucket_avx512_flag );
+#endif
 
 #endif
   
