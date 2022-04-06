@@ -275,81 +275,28 @@ do{ \
 }while(0)
 
 
-#define perf_test_0(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_0_linear(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
   perf_test_once_vars(test_no,if_no,loops_num,options,cycles,8,shift_one_key,1,if_fn,h,kv,result);\
 }while(0)
 
-
-
-#define perf_test_0_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_0_linear_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
   perf_test_once_vars(test_no,if_no,loops_num,options,cycles,16,shift_one_key,1,if_fn,h,kv,result);\
 }while(0)
 
-
-#define perf_test_0_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_0_random(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
   perf_test_once_vars(test_no,if_no,loops_num,options,cycles,8,random_one_key,0,if_fn,h,kv,result);\
 }while(0)
 
-
-#define perf_test_0_1_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_0_random_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
   perf_test_once_vars(test_no,if_no,loops_num,options,cycles,16,random_one_key,0,if_fn,h,kv,result);\
 }while(0)
 
-#if 0
-#define perf_test_0(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{ \
-  u64 _loop_cnt = loops_num/8;\
-  u64 num_of_elm = loops_num;\
-  options = 0;\
-  u64 start ; \
-  reset_one_key(kv,0); \
-  start = clib_cpu_time_now();\
-  do{\
-\
-    for(i=0;i<8;i++){\
-      \
-      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
-      }\
-      shift_one_key(kv,1);\
-    }\
-    options+=8 ;\
-\
-  }while(--_loop_cnt);\
-  cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
-}while(0)
 
-#define perf_test_0_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{ \
-  u64 _loop_cnt = loops_num/8;\
-  u64 num_of_elm = loops_num;\
-  options = 0;\
-  u64 start ; \
-  reset_one_key(kv,0); \
-  start = clib_cpu_time_now();\
-  do{\
-\
-    for(i=0;i<8;i++){\
-      \
-      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
-       /* fformat(stdout,"clib_bihash_search not found, key:%x \n",kv.key); */ \
-      }\
-      random_one_key(kv,0);\
-    }\
-    options+=8 ;\
-\
-  }while(--_loop_cnt);\
-  cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
-}while(0)
-
-#endif
-
-#define perf_test_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_1_linear(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
   u64 _loop_cnt = loops_num/8;\
   u64 num_of_elm = loops_num;\
@@ -408,59 +355,23 @@ do{ \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
-#define perf_test_1_0_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_1_linear_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
 perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,shift_keys,16,if_fn,h,kv,result);\
 \
 }while(0)
 
-#define perf_test_1_1_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_1_random_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
 perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,random_keys,0,if_fn,h,kv,result);\
 \
 }while(0)
 
-#if 0
-#define perf_test_1_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{ \
-  u64 _loop_cnt = loops_num/16;\
-  u64 div_cnt = loops_num%16; \
-  u64 num_of_elm = loops_num;\
-  options = 0;\
-  u64 start; \
-  u8 key_mask = 0xFF;\
-  u8 valid_key_idx = 0; \
-  reset_keys(kv,16,0);\
-  start = clib_cpu_time_now();\
-  do{\
-\
-    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    if (if_fn(h, kv+8, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    shift_keys(kv,16,16);\
-    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
-    options+=16; \
-\
-  }while(--_loop_cnt);\
-  if(div_cnt){\
-  \
-    for(i=0;i<div_cnt;i++){\
-      \
-      if (BV (clib_bihash_search) (h, &kv[0], &kv[0]) < 0){\
-      }\
-      kv[0].key+=1;\
-    }\
-    options+=div_cnt ;\
-  }\
-  cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
-}while(0)
-#endif
 
-#define perf_test_1_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+#define perf_test_1_random(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
   u64 _loop_cnt = loops_num/8;\
+  /* u64 div_cnt = loops_num%8 */ ; \
   u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start; \
@@ -640,67 +551,316 @@ do{\
 }while(0)
 
 
+typedef enum {
+  PROFILE_TYPE_I,
+  PROFILE_TYPE_II,
+  PROFILE_TYPE_III,
+  PROFILE_TYPE_IV,
+  PROFILE_TYPE_V
+}keyInitType;
 
-
-/*
-*
-*
-*/
-
-int main(int argc,char *argv[])
+typedef struct profile_type_table
 {
+  int id;
+  keyInitType type;
+  u64 element_cnt;
+  u64 nbuckets;
+  u64 active;
+  f64 bucket_usage_rate;
+  char info[32];
+}profile_type_table;
 
+profile_type_table g_p_table[] = {
+
+  /**
+   * general case, scale: 1e3 
+   * 
+   */
+  {1,PROFILE_TYPE_I,1000,1048576,1000,0.001,"profile_id 01"},
+
+  /**
+   * general case, scale: 1e4 
+   * 
+   */
+  {2,PROFILE_TYPE_I,10000,1048576,10000,0.0095,"profile_id 02"},
+
+  /**
+   * general case, scale: 1e5 
+   * 
+   */
+  {3,PROFILE_TYPE_I,100000,1048576,100000,0.0954,"profile_id 03"},
+
+  /**
+   * general case, scale: 1e6 
+   * 
+   */
+  {4,PROFILE_TYPE_I,1000000,1048576,100000,0.9537,"profile_id 04"},
+
+  /**
+   * general case, scale: 1e7 
+   * 
+   */
+  {5,PROFILE_TYPE_I,10000000,1048576,1000000,1.0,"profile_id 05"},
+  
+  /**
+   * general case, scale: 3e6 
+   * 
+   */
+  {6,PROFILE_TYPE_I,3000000,1048576,1000000,1.0,"profile_id 06"},
+
+   /**
+   * general case, scale: 4e6 
+   * 
+   */
+  {7,PROFILE_TYPE_I,4000000,1048576,1000000,1.0,"profile_id 07"},
+
+   /**
+   * general case, scale: 5e6 
+   * 
+   */
+  {8,PROFILE_TYPE_I,5000000,1048576,1000000,1.0,"profile_id 08"},
+
+     /**
+   * general case, scale: 6e6 
+   * 
+   */
+  {9,PROFILE_TYPE_I,6000000,1048576,1000000,1.0,"profile_id 09"},
+
+  /**
+   * general case, scale: 7e6 
+   * 
+   */
+  {10,PROFILE_TYPE_I,7000000,1048576,1000,0.001,"profile_id 10"},
+
+   /**
+   * 
+   * general case, scale: 1e3 
+   * category II
+   */
+  {11,PROFILE_TYPE_II,1000,1048576,1000,0.001,"profile_id 11"},
+
+  /**
+   * 
+   * general case, scale: 1e4
+   * category II
+   */
+  {12,PROFILE_TYPE_II,10000,1048576,9978,0.0095,"profile_id 12"},
+
+  /**
+   * 
+   * general case, scale: 1e5
+   * category II
+   */
+  {13,PROFILE_TYPE_II,100000,1048576,96864,0.0924,"profile_id 13"},
+
+  /**
+   * 
+   * general case, scale: 1e6
+   * category II
+   */
+  {14,PROFILE_TYPE_II,1000000,1048576,665289,0.6345,"profile_id 14"},
+
+  /**
+   * 
+   * general case, scale: 1e7
+   * category II
+   */
+  {15,PROFILE_TYPE_II,10000000,1048576,1048576,1.0,"profile_id 15"},
+
+  /**
+   * linear case ,scale: 2e6 
+   * linear: 22
+   * category III
+   */
+  {20,PROFILE_TYPE_III,2000000,1048576,989261,0.9434,"profile_id 21"},
+
+  /*
+  * linear case ,scale: 3e6
+  * linear: 109 
+  * category III
+  * */
+  {21,PROFILE_TYPE_III,3000000,1048576,989261,0.9434,"profile_id 21"},
+
+  /*
+  * linear case ,scale: 4e6
+  * linear: 338 
+  * category III
+  * */
+  {22,PROFILE_TYPE_III,4000000,1048576,1025909,0.9784,"profile_id 22"},
+
+  /*
+  * linear case ,scale: 5e6
+  * linear: 724 
+  * category III
+  * */
+  {23,PROFILE_TYPE_III,5000000,1048576,1040006,0.9918,"profile_id 23"},
+
+  /*
+  * linear case ,scale: 6e6
+  * linear: 1306 
+  * category III
+  * */
+  {24,PROFILE_TYPE_III,6000000,1048576,1045319,0.9969,"profile_id 24"},
+
+  /*
+  * linear case ,scale: 7e6
+  * linear: 2104 
+  * category III
+  * */
+  {25,PROFILE_TYPE_III,7000000,1048576,1047308,0.9988,"profile_id 25"},
+  
+  /*
+  * linear case ,scale: 1e7
+  * linear: 5031 
+  * category III
+  * */
+  {29,PROFILE_TYPE_III,7000000,1048576,1047308,0.9988,"profile_id 29"},
+
+  /**
+   * 
+   * random case, scale: 1e3
+   * category IV
+   */
+  {31,PROFILE_TYPE_IV,1000,1048576,1000,0.001,"profile_id 31"},
+  /**
+   * 
+   * random case, scale: 1e4
+   * category IV
+   */
+  {32,PROFILE_TYPE_IV,10000,1048576,9949,0.0095,"profile_id 32"},
+
+  /**
+   * 
+   * random case, scale: 1e5
+   * category IV
+   */
+  {33,PROFILE_TYPE_IV,100000,1048576,95208,0.0908,"profile_id 33"},
+
+  /**
+   * 
+   * random case, scale: 1e6
+   * category IV
+   */
+  {34,PROFILE_TYPE_IV,1000000,1048576,644486,0.6146,"profile_id 34"},
+
+  /**
+   * 
+   * random case, scale: 1e7
+   * category IV
+   */
+  {35,PROFILE_TYPE_IV,10000000,1048576,1048500,0.9999,"profile_id 35"},
+
+  /**
+   * 
+   * random case, scale: 3e6
+   * category IV
+   */
+  {36,PROFILE_TYPE_IV,3000000,1048576,1048500,0.9999,"profile_id 36"},
+
+  /**
+   * 
+   * random case, scale: 12e4
+   * category V
+   * bucket_usage_rate ~ 10%
+   */
+  {40,PROFILE_TYPE_V,120000,1048576,114195,0.01089,"profile_id 40"},
+
+  /**
+   * 
+   * random case, scale: 25e4
+   * category V
+   * bucket_usage_rate ~ 20%
+   */
+  {41,PROFILE_TYPE_V,250000,1048576,223931,0.2136,"profile_id 41"},
+
+  /**
+   * 
+   * random case, scale: 36e4
+   * category V
+   * bucket_usage_rate ~ 30%
+   */
+  {42,PROFILE_TYPE_V,360000,1048576,305228,0.2911,"profile_id 42"},
+
+  /**
+   * 
+   * random case, scale: 5e5
+   * category V
+   * bucket_usage_rate ~ 40%
+   */
+  {43,PROFILE_TYPE_V,500000,1048576,399339,0.3808,"profile_id 43"},
+
+  /**
+   * 
+   * random case, scale: 7e5
+   * category V
+   * bucket_usage_rate ~ 50%
+   */
+  {44,PROFILE_TYPE_V,700000,1048576,510995,0.4873,"profile_id 44"},  
+
+  /**
+   * 
+   * random case, scale: 10e5
+   * category V
+   * bucket_usage_rate ~ 60%
+   */
+  {45,PROFILE_TYPE_V,1000000,1048576,645734,0.6158,"profile_id 45"},
+
+  /**
+   * 
+   * random case, scale: 13e5
+   * category V
+   * bucket_usage_rate ~ 70%
+   */
+  {46,PROFILE_TYPE_V,1300000,1048576,748349,0.7137,"profile_id 46"},
+
+  /**
+   * 
+   * random case, scale: 19e5
+   * category V
+   * bucket_usage_rate ~ 80%
+   */
+  {47,PROFILE_TYPE_V,1900000,1048576,874700,0.8342,"profile_id 47"},
+
+  /**
+   * 
+   * random case, scale: 25e5
+   * category V
+   * bucket_usage_rate ~  90%
+   */
+  {48,PROFILE_TYPE_V,2500000,1048576,953081,0.9089,"profile_id 48"},
+
+  /**
+   * 
+   * random case, scale: 35e5
+   * category V
+   * bucket_usage_rate  ~ 95%
+   */
+  {49,PROFILE_TYPE_V,3500000,1048576,1009506,0.9327,"profile_id 49"},
+
+  /**
+   * general case, scale: 1e6
+   * is_which_profile open switch,some key didn't exist in hash table.
+   * @see the macro of perf_test_1
+   */
+  {59,PROFILE_TYPE_I,1000000,1048576,1000,0.001,"profile_id 59"}
+  
+};
+
+
+int init_hash_table(
+  profile_type_table *table,
+  int is_which_profile,
+  BVT (clib_bihash) * h, 
+  u64* loops)
+{
   BVT (clib_bihash_kv) kv;
-  int i, j;
-  u64 loop_cnt;
-  u64 cycles[32];
-  u64 options[32];
+  int table_cnt; 
+  int i;
+  int loop_cnt;
+  keyInitType ntype;
+  profile_type_table *ptbl = NULL;
 
-  BVT (clib_bihash_kv) kv1_8[8];
-  BVT (clib_bihash_kv) kv4_8[8];
-  BVT (clib_bihash_kv) kv5_8[8];
-  BVT (clib_bihash_kv) kv14_8[16];
-  BVT (clib_bihash) * h;
-
-  // u32 user_buckets = 1228800;
-    u32 user_buckets = 614400;
-    // u32 user_buckets = 307200;
-
-  u32 user_memory_size = 209715200;
-
-  BVT (clib_bihash) hash={0};
-  // BVT (clib_bihash) hash2={0};
-  h = &hash;
-  // clib_mem_init_with_page_size (1ULL << 30, CLIB_MEM_PAGE_SZ_1G);
-  clib_mem_init (0, 1ULL << 30);
-
-  BV (clib_bihash_init) (h, "bihash-profiler", user_buckets, user_memory_size);
-
-  #if BIHASH_ENABLE_STATS
-  BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
-  #endif
-
-  u32 fix_seed=0;
-
-  // if(argc > 4){
-    fix_seed = time(0);
-  // }
-  srandom(fix_seed);
-
-
-  // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
-  i=j=0;
-  kv.key = 0;
-
-  int is_which ;
-  int is_which_profile;
-  is_which_profile = 0;
-
-  if(argc>1){
-    is_which_profile = atoi(argv[1]);
-  }
-
-
+  
 #define category_I_init(h,kv,amount) do{\
 int j=0;\
 for (j = 0; j < amount; j++)\
@@ -766,380 +926,122 @@ for (j = 0; j < amount; j++)\
     }\
 }while(0)
 
-  if(is_which_profile == 0){
-    loop_cnt = 12374;
-    for (j = 0; j < 100; j++)
-    {
-      for (i = 1; i <= j * 1000 + 1; i++)
-      {
-        kv.key = i;
-        kv.value = i+1+0x7FFFFFFFFFFF;
 
-        BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-      }    
+  table_cnt = sizeof(g_p_table)/sizeof(g_p_table[0]);
+
+  for(i=0;i<table_cnt;i++){
+    //  fformat (stdout, "item:%s\n",table[i].info);
+    if(table[i].id == is_which_profile){
+      ptbl= &table[i];
+      /**/
+      fformat (stdout, "item:%s\n",ptbl->info);
+      break;
     }
-
-  }else if(is_which_profile == 1){
-     /**
-     * general case, scale: 1e3 
-     * 
-     */
-      loop_cnt=1000;
-      category_I_init(h,kv,loop_cnt);
-  }else if(is_which_profile == 2){
-     /**
-     * general case, scale: 1e4 
-     * 
-     */
-      loop_cnt=10000;
-      category_I_init(h,kv,loop_cnt);
- 
-  }else if(is_which_profile == 3){
-    /**
-     * general case, scale: 1e5 
-     * 
-     */
-      loop_cnt=100000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 4){
-    /**
-     * general case, scale: 1e6 
-     * 
-     */
-      loop_cnt=1000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 5){
-     /**
-     * general case, scale: 1e7 
-     * 
-     */
-      loop_cnt=10000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 6){
-     /**
-     * general case, scale: 3e6 
-     */
-      loop_cnt=3000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 7){
-     /**
-     * general case, scale: 4e6
-     * 
-     */
-      loop_cnt=4000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 8){
-     /**
-     * general case, scale: 5e6 
-     * 
-     */
-      loop_cnt=5000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 9){
-     /**
-     * general case, scale: 6e6 
-     * 
-     */
-      loop_cnt=6000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 10){
-     /**
-     * general case, scale: 7e6 
-     * 
-     */
-      loop_cnt=7000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 11){
-   /**
-     * 
-     * general case, scale: 1e3 
-     * category II
-     */
-      loop_cnt=1000;
-      category_II_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 12){
-   /**
-     * 
-     * general case, scale: 1e4
-     * category II
-     */
-      loop_cnt=10000;
-      category_II_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 13){
-   /**
-     * 
-     * general case, scale: 1e5
-     * category II
-     */
-      loop_cnt=100000;
-      category_II_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 14){
-   /**
-     * 
-     * general case, scale: 1e6
-     * category II
-     */
-      loop_cnt=1000000;
-      category_II_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 15){
-   /**
-     * 
-     * general case, scale: 1e7
-     * category II
-     */
-      loop_cnt=10000000;
-      category_II_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 20){
-     /**
-     * linear case ,scale: 2e6 
-     * linear: 22
-     * category III
-     */
-      loop_cnt=2000000;
-      category_III_init(h,kv,loop_cnt);
-
-     
-  }else if(is_which_profile == 21){
-    /*
-    * linear case ,scale: 3e6
-    * linear: 109 
-    * category III
-    * */
-      loop_cnt=3000000;
-      category_III_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 22){
-    /*
-    * linear case ,scale: 4e6
-    * linear: 338 
-    * category III
-    * */
-      loop_cnt=4000000;
-      category_III_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 23){
-    /*
-    * linear case ,scale: 5e6
-    * linear: 724 
-    * category III
-    * */
-      loop_cnt=5000000;
-      category_III_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 24){
-    /*
-    * linear case ,scale: 6e6
-    * linear: 1306 
-    * category III
-    * */
-      loop_cnt=6000000;
-      category_III_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 25){
-    /*
-    * linear case ,scale: 7e6
-    * linear: 2104 
-    * category III
-    * */
-      loop_cnt=7000000;
-      category_III_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 29){
-
-    /*
-    * linear case ,scale: 1e7
-    * linear: 5031 
-    * category III
-    * */
-
-      loop_cnt=10000000;
-      category_III_init(h,kv,loop_cnt);
-
-  }else if(is_which_profile == 31){
-   /**
-     * 
-     * random case, scale: 1e3
-     * category IV
-     */
-      loop_cnt=1000;
-      category_IV_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 32){
-   /**
-     * 
-     * random case, scale: 1e4
-     * category IV
-     */
-      loop_cnt=10000;
-      category_IV_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 33){
-   /**
-     * 
-     * random case, scale: 1e5
-     * category IV
-     */
-      loop_cnt=100000;
-      category_IV_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 34){
-   /**
-     * 
-     * random case, scale: 1e6
-     * category IV
-     */
-      loop_cnt=1000000;
-      category_IV_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 35){
-   /**
-     * 
-     * random case, scale: 1e7
-     * category IV
-     */
-      loop_cnt=10000000;
-      category_IV_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 36){
-   /**
-     * 
-     * random case, scale: 3e6
-     * category IV
-     */
-      loop_cnt=3000000;
-      category_IV_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 40){
-   /**
-     * 
-     * random case, scale: 12e4
-     * category V
-     * bucket_usage_rate ~ 10%
-     */
-      loop_cnt=120000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 41){
-   /**
-     * 
-     * random case, scale: 25e4
-     * category V
-     * bucket_usage_rate ~ 20%
-     */
-      loop_cnt=250000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 42){
-   /**
-     * 
-     * random case, scale: 36e4
-     * category V
-     * bucket_usage_rate ~ 30%
-     */
-      loop_cnt=360000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 43){
-   /**
-     * 
-     * random case, scale: 5e5
-     * category V
-     * bucket_usage_rate ~ 40%
-     */
-      loop_cnt=500000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 44){
-   /**
-     * 
-     * random case, scale: 7e5
-     * category V
-     * bucket_usage_rate ~ 50%
-     */
-      loop_cnt=700000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 45){
-   /**
-     * 
-     * random case, scale: 10e5
-     * category V
-     * bucket_usage_rate ~ 60%
-     */
-      loop_cnt=1000000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 46){
-   /**
-     * 
-     * random case, scale: 13e5
-     * category V
-     * bucket_usage_rate ~ 70%
-     */
-      loop_cnt=1300000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 47){
-   /**
-     * 
-     * random case, scale: 19e5
-     * category V
-     * bucket_usage_rate ~ 80%
-     */
-      loop_cnt=1900000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 48){
-   /**
-     * 
-     * random case, scale: 25e5
-     * category V
-     * bucket_usage_rate ~  90%
-     */
-      loop_cnt=2500000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 49){
-   /**
-     * 
-     * random case, scale: 35e5
-     * category V
-     * bucket_usage_rate  ~ 95%
-     */
-      loop_cnt=3500000;
-      category_V_init(h,kv,loop_cnt);
-     
-  }else if(is_which_profile == 59){
-     /**
-     * general case, scale: 1e6
-     * is_which_profile open switch,some key didn't exist in hash table.
-     * @see the macro of perf_test_1
-     */
-      loop_cnt=1000000;
-      category_I_init(h,kv,loop_cnt);
-
-  }else{
-    /* default 
-    *  category V, scale: 5e5
-    */
-    loop_cnt=500000;
-    category_V_init(h,kv,loop_cnt);
-      
   }
-  
+
+  if(!ptbl)return -1;
+
+  loop_cnt = ptbl->element_cnt;
+  ntype = ptbl->type;
+  switch (ntype)
+  {
+    case PROFILE_TYPE_I:
+      /* code */
+      category_I_init(h,kv,loop_cnt);
+      break;
+    case PROFILE_TYPE_II:
+      /* code */
+      category_II_init(h,kv,loop_cnt);
+      break;
+    case PROFILE_TYPE_III:
+      /* code */
+      category_III_init(h,kv,loop_cnt);
+      break;
+    case PROFILE_TYPE_IV:
+      /* code */
+      category_IV_init(h,kv,loop_cnt);
+      break;
+    case PROFILE_TYPE_V:
+      /* code */
+      category_V_init(h,kv,loop_cnt);
+      break;
+  default:
+    category_I_init(h,kv,loop_cnt);
+    break;
+  }
+
+  if(loops)
+    *loops=loop_cnt;
+
+  return 0;
+
+}
+
+/*
+*
+*
+*/
+
+int main(int argc,char *argv[])
+{
+
+  BVT (clib_bihash_kv) kv;
+  int i, j;
+  int ret;
+  u64 loop_cnt = 0;
+  u64 cycles[32];
+  u64 options[32];
+
+  BVT (clib_bihash_kv) kv1_8[8];
+  BVT (clib_bihash_kv) kv4_8[8];
+  BVT (clib_bihash_kv) kv5_8[8];
+  BVT (clib_bihash_kv) kv14_8[16];
+  BVT (clib_bihash) * h;
+
+  // u32 user_buckets = 1228800;
+    u32 user_buckets = 614400;
+    // u32 user_buckets = 307200;
+
+  u32 user_memory_size = 209715200;
+
+  BVT (clib_bihash) hash={0};
+  // BVT (clib_bihash) hash2={0};
+  h = &hash;
+  // clib_mem_init_with_page_size (1ULL << 30, CLIB_MEM_PAGE_SZ_1G);
+  clib_mem_init (0, 1ULL << 30);
+
+  BV (clib_bihash_init) (h, "bihash-profiler", user_buckets, user_memory_size);
+
+  #if BIHASH_ENABLE_STATS
+  BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
+  #endif
+
+  u32 fix_seed=0;
+
+  // if(argc > 4){
+    fix_seed = time(0);
+  // }
+  srandom(fix_seed);
+
+
+  // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
+  i=j=0;
+  kv.key = 0;
+
+  int is_which ;
+  int is_which_profile;
+  is_which_profile = 0;
+
+  if(argc>1){
+    is_which_profile = atoi(argv[1]);
+  }
+
+  ret = init_hash_table(g_p_table,is_which_profile,h,&loop_cnt);
+  if(ret < 0 ){
+      fformat (stdout, "init_hash_table failed \n");
+  }
+
+
 #if BIHASH_ENABLE_STATS
   
   fformat (stdout, "Stats:\n%U", BV(format_bihash), h, 1 /* verbose */ );
@@ -1221,27 +1123,26 @@ for (j = 0; j < amount; j++)\
      * Observe the 'ratio' metric.
      */
       fformat (stdout,"perf_test[ALL]...profile_id[%d]\n",is_which_profile);
-      perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-      perf_test_0_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
-      perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-      perf_test_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
-      perf_test_1_0_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+      perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+      perf_test_0_linear_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
+      perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+      perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+      perf_test_1_linear_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
 
-      
       // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
     
       format_prt_compared(0,0);
 
   }else if(is_which == 0x0 ){
       fformat (stdout,"perf_test[0]...\n");
-      perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+      perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
   }else if(is_which == 0x4){
       fformat (stdout,"perf_test[4]...\n");
-      perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+      perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
   }else if(is_which == 0x5){
       fformat (stdout,"perf_test[5]...\n");
       // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
-      perf_test_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+      perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
 
   }else if(is_which == 0x6){
     /**
@@ -1251,11 +1152,11 @@ for (j = 0; j < amount; j++)\
      */
     fformat (stdout,"perf_test[6]...profile_id[%d]\n",is_which_profile);
 
-    perf_test_0_1(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-    perf_test_0_1_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
-    perf_test_1_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-    perf_test_1_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
-    perf_test_1_1_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+    perf_test_0_random(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+    perf_test_0_random_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
+    perf_test_1_random(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+    perf_test_1_random(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+    perf_test_1_random_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
 
 
     format_prt_compared(0,0);
