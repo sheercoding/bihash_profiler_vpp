@@ -139,6 +139,27 @@ int BV (clib_bihash_search_batch_v5)
   return ret;
 }
 
+int BV (clib_bihash_search_batch_v5x32)
+  (BVT (clib_bihash) * h,
+   BVT (clib_bihash_kv) * search_key, u32 key_mask,
+   BVT (clib_bihash_kv) * valuep,u32 * valid_key_idx)
+{
+  int ret = 0;
+  int kvs_cnt = _mm_popcnt_u32 (key_mask);
+  int i;
+  u32 bitmap=0;
+  for(i=0;i<kvs_cnt;i++){
+    if (BV (clib_bihash_search) (h, &search_key[i], &valuep[i]) < 0){
+    }else{
+      USER_BIT_SET(bitmap,i);
+      ret++;
+    }
+  }
+  
+  *valid_key_idx = bitmap;
+  return ret;
+}
+
 int BV (clib_bihash_search_batch_v4)
   (BVT (clib_bihash) * h,
    BVT (clib_bihash_kv) * search_key, u8 key_mask,
@@ -219,6 +240,66 @@ do{\
       ); \
 }while(0)
 
+#define perf_test_once_vars(test_no,if_no,loops_num,options,cycles,loop_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/loop_cnt_once;\
+  u64 div_cnt = loops_num%loop_cnt_once;\
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start ; \
+  reset_one_key(kv,0); \
+  start = clib_cpu_time_now();\
+  do{\
+\
+    for(i=0;i<loop_cnt_once;i++){\
+      \
+      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
+      }\
+      key_ops_step(kv,ops_flag);\
+    }\
+    options += loop_cnt_once ;\
+\
+  }while(--_loop_cnt);\
+  if(div_cnt){\
+\
+  for(i=0;i<div_cnt;i++){\
+      \
+      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
+      }\
+      key_ops_step(kv,ops_flag);\
+    }\
+    options += div_cnt ;\
+  }\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+
+#define perf_test_0(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+  perf_test_once_vars(test_no,if_no,loops_num,options,cycles,8,shift_one_key,1,if_fn,h,kv,result);\
+}while(0)
+
+
+
+#define perf_test_0_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+  perf_test_once_vars(test_no,if_no,loops_num,options,cycles,16,shift_one_key,1,if_fn,h,kv,result);\
+}while(0)
+
+
+#define perf_test_0_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+  perf_test_once_vars(test_no,if_no,loops_num,options,cycles,8,random_one_key,0,if_fn,h,kv,result);\
+}while(0)
+
+
+#define perf_test_0_1_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+  perf_test_once_vars(test_no,if_no,loops_num,options,cycles,16,random_one_key,0,if_fn,h,kv,result);\
+}while(0)
+
+#if 0
 #define perf_test_0(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
   u64 _loop_cnt = loops_num/8;\
@@ -266,6 +347,7 @@ do{ \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
+#endif
 
 #define perf_test_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
@@ -289,6 +371,92 @@ do{ \
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
+
+#define perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,loop_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/loop_cnt_once;\
+  u64 div_cnt = loops_num%loop_cnt_once; \
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start; \
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  reset_keys(kv,loop_cnt_once,0);\
+  start = clib_cpu_time_now();\
+  do{\
+\
+    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    if (if_fn(h, kv+8, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    key_ops_step(kv,loop_cnt_once,ops_flag);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
+    options+=loop_cnt_once; \
+\
+  }while(--_loop_cnt);\
+  if(div_cnt){\
+  \
+    for(i=0;i<div_cnt;i++){\
+      \
+      if (BV (clib_bihash_search) (h, &kv[0], &kv[0]) < 0){\
+      }\
+      kv[0].key+=1;\
+    }\
+    options+=div_cnt ;\
+  }\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+#define perf_test_1_0_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,shift_keys,16,if_fn,h,kv,result);\
+\
+}while(0)
+
+#define perf_test_1_1_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,random_keys,0,if_fn,h,kv,result);\
+\
+}while(0)
+
+#if 0
+#define perf_test_1_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/16;\
+  u64 div_cnt = loops_num%16; \
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start; \
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  reset_keys(kv,16,0);\
+  start = clib_cpu_time_now();\
+  do{\
+\
+    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    if (if_fn(h, kv+8, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    shift_keys(kv,16,16);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
+    options+=16; \
+\
+  }while(--_loop_cnt);\
+  if(div_cnt){\
+  \
+    for(i=0;i<div_cnt;i++){\
+      \
+      if (BV (clib_bihash_search) (h, &kv[0], &kv[0]) < 0){\
+      }\
+      kv[0].key+=1;\
+    }\
+    options+=div_cnt ;\
+  }\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+#endif
 
 #define perf_test_1_1(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
@@ -491,6 +659,7 @@ int main(int argc,char *argv[])
   BVT (clib_bihash_kv) kv1_8[8];
   BVT (clib_bihash_kv) kv4_8[8];
   BVT (clib_bihash_kv) kv5_8[8];
+  BVT (clib_bihash_kv) kv14_8[16];
   BVT (clib_bihash) * h;
 
   // u32 user_buckets = 1228800;
@@ -1026,11 +1195,15 @@ for (j = 0; j < amount; j++)\
             new_perf_data_line\
             new_perf_data_line\
             new_perf_data_line\
+            new_perf_data_line\
+            new_perf_data_line\
             table_end_line,\
         options[0],\
         new_data_line(0,0),\
+        new_data_line(1,1),\
         new_data_line(4,4),\
-        new_data_line(5,5)\
+        new_data_line(5,5),\
+        new_data_line(6,6)\
         );\
   }while(0)
 
@@ -1049,8 +1222,12 @@ for (j = 0; j < amount; j++)\
      */
       fformat (stdout,"perf_test[ALL]...profile_id[%d]\n",is_which_profile);
       perf_test_0(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+      perf_test_0_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
       perf_test_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
       perf_test_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+      perf_test_1_0_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+
+      
       // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
     
       format_prt_compared(0,0);
@@ -1075,8 +1252,11 @@ for (j = 0; j < amount; j++)\
     fformat (stdout,"perf_test[6]...profile_id[%d]\n",is_which_profile);
 
     perf_test_0_1(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+    perf_test_0_1_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
     perf_test_1_1(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
     perf_test_1_1(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+    perf_test_1_1_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+
 
     format_prt_compared(0,0);
 

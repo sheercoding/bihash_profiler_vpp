@@ -22,19 +22,21 @@ function ProgressBar {
 	_start=1
 # This accounts as the "totalState" variable for the ProgressBar function
 	_end=100
-
 ProgressBar 0 100
-./profiles/profile_cateI_batch.sh > ./data/profile_cateI_batch.log
-ProgressBar 25 100
-./profiles/profile_cateII_batch.sh > ./data/profile_cateII_batch.log
-ProgressBar 50 100
-./profiles/profile_cateIII_batch.sh > ./data/profile_cateIII_batch.log
-ProgressBar 75 100
-./profiles/profile_cateI_supple_batch.sh > ./data/profile_cateI_supple_batch.log
-ProgressBar 80 100
-./profiles/profile_cateIV_batch.sh > ./data/profile_cateIV_batch.log
-ProgressBar 90 100
-./profiles/profile_cateV_batch.sh > ./data/profile_cateV_batch.log
-ProgressBar 100 100
 
+ProgressBar 10 100
+./profiles/profile_cateI_batch.sh > ./data/profile_cateI_batch.log
+ProgressBar 30 100
+./profiles/profile_cateII_batch.sh > ./data/profile_cateII_batch.log
+ProgressBar 40 100
+./profiles/profile_cateIII_batch.sh > ./data/profile_cateIII_batch.log
+ProgressBar 50 100
+./profiles/profile_cateI_supple_batch.sh > ./data/profile_cateI_supple_batch.log
+ProgressBar 60 100
+./profiles/profile_cateIV_batch.sh > ./data/profile_cateIV_batch.log
+ProgressBar 75 100
+./profiles/profile_cateV_batch.sh > ./data/profile_cateV_batch.log
+ProgressBar 85 100
+./profiles/profile_cateV_random_batch.sh> ./data/profile_cateV_random_batch.log
+ProgressBar 100 100
 printf "\n"
