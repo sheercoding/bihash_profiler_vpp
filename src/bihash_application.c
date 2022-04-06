@@ -240,10 +240,9 @@ do{\
       ); \
 }while(0)
 
-#define perf_test_once_vars(test_no,if_no,loops_num,options,cycles,loop_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
+#define perf_test_0_random(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num/loop_cnt_once;\
-  u64 div_cnt = loops_num%loop_cnt_once;\
+  u64 _elm_cnt = loops_num/8;\
   u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start ; \
@@ -251,15 +250,39 @@ do{ \
   start = clib_cpu_time_now();\
   do{\
 \
-    for(i=0;i<loop_cnt_once;i++){\
+    for(i=0;i<8;i++){\
+      \
+      if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
+      }\
+      random_one_key(kv,0);\
+    }\
+    options+=8 ;\
+\
+  }while(--_elm_cnt);\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+#define perf_test_once_vars(test_no,if_no,loops_num,options,cycles,elm_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
+do{ \
+  u64 _elm_cnt = loops_num/elm_cnt_once;\
+  u64 div_cnt = loops_num%elm_cnt_once;\
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start ; \
+  reset_one_key(kv,0); \
+  start = clib_cpu_time_now();\
+  do{\
+\
+    for(i=0;i<elm_cnt_once;i++){\
       \
       if (BV (clib_bihash_search) (h, &kv, &kv) < 0){\
       }\
       key_ops_step(kv,ops_flag);\
     }\
-    options += loop_cnt_once ;\
+    options += elm_cnt_once ;\
 \
-  }while(--_loop_cnt);\
+  }while(--_elm_cnt);\
   if(div_cnt){\
 \
   for(i=0;i<div_cnt;i++){\
@@ -285,10 +308,12 @@ do{\
   perf_test_once_vars(test_no,if_no,loops_num,options,cycles,16,shift_one_key,1,if_fn,h,kv,result);\
 }while(0)
 
+#if 0
 #define perf_test_0_random(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
   perf_test_once_vars(test_no,if_no,loops_num,options,cycles,8,random_one_key,0,if_fn,h,kv,result);\
 }while(0)
+#endif
 
 #define perf_test_0_random_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{\
@@ -298,7 +323,7 @@ do{\
 
 #define perf_test_1_linear(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num/8;\
+  u64 _elm_cnt = loops_num/8;\
   u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start; \
@@ -314,33 +339,35 @@ do{ \
     if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
     options+=8; \
 \
-  }while(--_loop_cnt);\
+  }while(--_elm_cnt);\
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
-#define perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,loop_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
+#define perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,elm_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num/loop_cnt_once;\
-  u64 div_cnt = loops_num%loop_cnt_once; \
+  u64 _elm_cnt = loops_num/elm_cnt_once;\
+  u64 div_cnt = loops_num%elm_cnt_once; \
+  u64 ngrp = elm_cnt_once/8; \
+  int i; \
   u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start; \
   u8 key_mask = 0xFF;\
   u8 valid_key_idx = 0; \
-  reset_keys(kv,loop_cnt_once,0);\
+  reset_keys(kv,elm_cnt_once,0);\
   start = clib_cpu_time_now();\
   do{\
 \
-    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    if (if_fn(h, kv+8, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    key_ops_step(kv,loop_cnt_once,ops_flag);\
+  for(i=0;i<ngrp;i++){\
+  if (if_fn(h, kv+8*i, key_mask,result+8*i,&valid_key_idx) < 0){\
+      }\
+  }\
+    key_ops_step(kv,elm_cnt_once,ops_flag);\
     if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
-    options+=loop_cnt_once; \
+    options+=elm_cnt_once; \
 \
-  }while(--_loop_cnt);\
+  }while(--_elm_cnt);\
   if(div_cnt){\
   \
     for(i=0;i<div_cnt;i++){\
@@ -367,10 +394,21 @@ perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,random_keys,0,if_
 \
 }while(0)
 
+#define perf_test_1_random_x32(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,32,random_keys,0,if_fn,h,kv,result);\
+\
+}while(0)
+
+#define perf_test_1_random_x64(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,64,random_keys,0,if_fn,h,kv,result);\
+\
+}while(0)
 
 #define perf_test_1_random(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num/8;\
+  u64 _elm_cnt = loops_num/8;\
   /* u64 div_cnt = loops_num%8 */ ; \
   u64 num_of_elm = loops_num;\
   options = 0;\
@@ -387,14 +425,14 @@ do{ \
     if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
     options+=8; \
 \
-  }while(--_loop_cnt);\
+  }while(--_elm_cnt);\
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
 }while(0)
 
 #define perf_test_2(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
 do{ \
-  u64 _loop_cnt = loops_num/8;\
+  u64 _elm_cnt = loops_num/8;\
   u64 num_of_elm = loops_num;\
   options = 0;\
   u64 start; \
@@ -408,7 +446,7 @@ do{ \
     if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
     options+=8; \
 \
-  }while(--_loop_cnt);\
+  }while(--_elm_cnt);\
   \
   cycles = clib_cpu_time_now() - start ;  \
   statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
@@ -467,7 +505,7 @@ do{\
 
 #define consistency_test_0(test_no,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
 do{\
-  u64 _loop_cnt = loops_num;\
+  u64 _elm_cnt = loops_num;\
   MD5_CTX c[2];\
   char buf[256];\
   unsigned char out0[MD5_DIGEST_LENGTH];\
@@ -501,7 +539,7 @@ do{\
         }\
     }\
     shift_keys(kv1,8,8);\
-  }while(--_loop_cnt);\
+  }while(--_elm_cnt);\
   \
   MD5_Final(out0, &c[0]);\
   MD5_Final(out1, &c[1]);\
@@ -512,7 +550,7 @@ do{\
 
 #define consistency_test_1(test_no,if_no0,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
 do{\
-  u64 _loop_cnt = loops_num;\
+  u64 _elm_cnt = loops_num;\
   MD5_CTX c[2];\
   char buf[256];\
   unsigned char out0[MD5_DIGEST_LENGTH];\
@@ -542,7 +580,7 @@ do{\
     }\
     shift_keys(kv0,8,8);/* proof the diffrence, change 'shift_keys(...)' to 'random_keys(...)'; */\
     shift_keys(kv1,8,8);\
-  }while(--_loop_cnt);\
+  }while(--_elm_cnt);\
   \
   MD5_Final(out0, &c[0]);\
   MD5_Final(out1, &c[1]);\
@@ -856,7 +894,7 @@ int init_hash_table(
   BVT (clib_bihash_kv) kv;
   int table_cnt; 
   int i;
-  int loop_cnt;
+  int elm_cnt;
   keyInitType ntype;
   profile_type_table *ptbl = NULL;
 
@@ -941,37 +979,37 @@ for (j = 0; j < amount; j++)\
 
   if(!ptbl)return -1;
 
-  loop_cnt = ptbl->element_cnt;
+  elm_cnt = ptbl->element_cnt;
   ntype = ptbl->type;
   switch (ntype)
   {
     case PROFILE_TYPE_I:
       /* code */
-      category_I_init(h,kv,loop_cnt);
+      category_I_init(h,kv,elm_cnt);
       break;
     case PROFILE_TYPE_II:
       /* code */
-      category_II_init(h,kv,loop_cnt);
+      category_II_init(h,kv,elm_cnt);
       break;
     case PROFILE_TYPE_III:
       /* code */
-      category_III_init(h,kv,loop_cnt);
+      category_III_init(h,kv,elm_cnt);
       break;
     case PROFILE_TYPE_IV:
       /* code */
-      category_IV_init(h,kv,loop_cnt);
+      category_IV_init(h,kv,elm_cnt);
       break;
     case PROFILE_TYPE_V:
       /* code */
-      category_V_init(h,kv,loop_cnt);
+      category_V_init(h,kv,elm_cnt);
       break;
   default:
-    category_I_init(h,kv,loop_cnt);
+    category_I_init(h,kv,elm_cnt);
     break;
   }
 
   if(loops)
-    *loops=loop_cnt;
+    *loops=elm_cnt;
 
   return 0;
 
@@ -988,7 +1026,7 @@ int main(int argc,char *argv[])
   BVT (clib_bihash_kv) kv;
   int i, j;
   int ret;
-  u64 loop_cnt = 0;
+  u64 elm_cnt = 0;
   u64 cycles[32];
   u64 options[32];
 
@@ -996,6 +1034,9 @@ int main(int argc,char *argv[])
   BVT (clib_bihash_kv) kv4_8[8];
   BVT (clib_bihash_kv) kv5_8[8];
   BVT (clib_bihash_kv) kv14_8[16];
+  BVT (clib_bihash_kv) kv24_8[32];
+  BVT (clib_bihash_kv) kv34_8[64];
+
   BVT (clib_bihash) * h;
 
   // u32 user_buckets = 1228800;
@@ -1036,7 +1077,7 @@ int main(int argc,char *argv[])
     is_which_profile = atoi(argv[1]);
   }
 
-  ret = init_hash_table(g_p_table,is_which_profile,h,&loop_cnt);
+  ret = init_hash_table(g_p_table,is_which_profile,h,&elm_cnt);
   if(ret < 0 ){
       fformat (stdout, "init_hash_table failed \n");
   }
@@ -1123,26 +1164,26 @@ int main(int argc,char *argv[])
      * Observe the 'ratio' metric.
      */
       fformat (stdout,"perf_test[ALL]...profile_id[%d]\n",is_which_profile);
-      perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-      perf_test_0_linear_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
-      perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-      perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
-      perf_test_1_linear_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+      perf_test_0_linear(0,0,elm_cnt,options[0],cycles[0],NULL,h,kv,kv);
+      perf_test_0_linear_x16(10,10,elm_cnt,options[1],cycles[1],NULL,h,kv,kv);
+      perf_test_1_linear(4,4,elm_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+      perf_test_1_linear(5,5,elm_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+      perf_test_1_linear_x16(14,14,elm_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
 
-      // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+      // perf_test_2(5,5,elm_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
     
       format_prt_compared(0,0);
 
   }else if(is_which == 0x0 ){
       fformat (stdout,"perf_test[0]...\n");
-      perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
+      perf_test_0_linear(0,0,elm_cnt,options[0],cycles[0],NULL,h,kv,kv);
   }else if(is_which == 0x4){
       fformat (stdout,"perf_test[4]...\n");
-      perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+      perf_test_1_linear(4,4,elm_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
   }else if(is_which == 0x5){
       fformat (stdout,"perf_test[5]...\n");
-      // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
-      perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+      // perf_test_2(5,5,elm_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+      perf_test_1_linear(5,5,elm_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
 
   }else if(is_which == 0x6){
     /**
@@ -1152,15 +1193,34 @@ int main(int argc,char *argv[])
      */
     fformat (stdout,"perf_test[6]...profile_id[%d]\n",is_which_profile);
 
-    perf_test_0_random(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-    perf_test_0_random_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
-    perf_test_1_random(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-    perf_test_1_random(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
-    perf_test_1_random_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+    perf_test_0_random(0,0,elm_cnt,options[0],cycles[0],NULL,h,kv,kv);
+    perf_test_0_random_x16(10,10,elm_cnt,options[1],cycles[1],NULL,h,kv,kv);
+    perf_test_1_random(4,4,elm_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+    perf_test_1_random(5,5,elm_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+    perf_test_1_random_x16(14,14,elm_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
 
 
     format_prt_compared(0,0);
 
+  }else if(is_which == 0x7){
+     /**
+     * 
+     * V0 as baseline, compare V4 and V5 with random searching keys.
+     * Observe the 'ratio' metric.
+     */
+    fformat (stdout,"perf_test[7]...profile_id[%d]\n",is_which_profile);
+
+    perf_test_0_random(0,0,elm_cnt,options[0],cycles[0],NULL,h,kv,kv);
+    perf_test_0_random_x16(1,1,elm_cnt,options[1],cycles[1],NULL,h,kv,kv);
+
+    // perf_test_1_random(4,4,elm_cnt,options[1],cycles[1],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
+    perf_test_1_random_x16(16,16,elm_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+    perf_test_1_random_x32(32,32,elm_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v4),h,kv24_8,kv24_8);
+    perf_test_1_random_x64(64,64,elm_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv34_8,kv34_8);
+
+    // perf_test_1_random(5,5,elm_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+
+    format_prt_compared(0,0);
   }
 
   if(argc > 3) {
@@ -1171,7 +1231,7 @@ int main(int argc,char *argv[])
       fformat (stdout,"consistency_test[ALL]...\n");
       consistency_test_0( 0,
                           4,
-                          loop_cnt,
+                          elm_cnt,
                           h,
                           kv,
                           kv4_8,
@@ -1179,7 +1239,7 @@ int main(int argc,char *argv[])
                           BV (clib_bihash_search_batch_v4));
       consistency_test_1( 1,
                           1,4,
-                          loop_cnt,
+                          elm_cnt,
                           h,
                           kv1_8,kv4_8,
                           BV (clib_bihash_search_batch_v5),
@@ -1188,7 +1248,7 @@ int main(int argc,char *argv[])
       fformat (stdout,"consistency_test[0]...\n");
       consistency_test_0( 0,
                           4,
-                          loop_cnt,
+                          elm_cnt,
                           h,
                           kv,
                           kv4_8,
@@ -1198,7 +1258,7 @@ int main(int argc,char *argv[])
       fformat (stdout,"consistency_test[1]...\n");
       consistency_test_1( 1,
                           1,4,
-                          loop_cnt,
+                          elm_cnt,
                           h,
                           kv1_8,kv4_8,
                           BV (clib_bihash_search_batch_v5),

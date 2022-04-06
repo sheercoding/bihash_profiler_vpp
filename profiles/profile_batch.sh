@@ -37,6 +37,6 @@ ProgressBar 60 100
 ProgressBar 75 100
 ./profiles/profile_cateV_batch.sh > ./data/profile_cateV_batch.log
 ProgressBar 85 100
-./profiles/profile_cateV_random_batch.sh> ./data/profile_cateV_random_batch.log
+./profiles/profile_cateV_random_batch.sh > ./data/profile_cateV_random_batch.log
 ProgressBar 100 100
 printf "\n"
