@@ -1,25 +1,4 @@
-/*
-  Copyright (c) 2020 Damjan Marion
 
-  Permission is hereby granted, free of charge, to any person obtaining
-  a copy of this software and associated documentation files (the
-  "Software"), to deal in the Software without restriction, including
-  without limitation the rights to use, copy, modify, merge, publish,
-  distribute, sublicense, and/or sell copies of the Software, and to
-  permit persons to whom the Software is furnished to do so, subject to
-  the following conditions:
-
-  The above copyright notice and this permission notice shall be
-  included in all copies or substantial portions of the Software.
-
-  THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
-  EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
-  MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
-  NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT HOLDERS BE
-  LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION
-  OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
-  WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
-*/
 #include <vlib/vlib.h>
 #include <vppinfra/time.h>
 #include <vppinfra/cache.h>
@@ -30,6 +9,7 @@
 #include <pthread.h>
 #include <openssl/md5.h>
 
+
 #define BIHASH_USING_8_8_STATS  (0)
 
 #if BIHASH_USING_8_8_STATS
@@ -39,9 +19,7 @@
 #endif
 
 #include <vppinfra/bihash_template.h>
-
 #include <vppinfra/bihash_template.c>
-
 
 #if BIHASH_ENABLE_STATS
 typedef struct
@@ -99,8 +77,6 @@ inc_stats_callback (BVT (clib_bihash) * h, int stat_id, u64 count)
 
 #endif
 
-
-int add_collisions( BVT (clib_bihash) * h);
 
 #define USER_BIT_SET(a,b) ((a) |= (1ULL<<(b)))
 
@@ -295,262 +271,6 @@ do{\
   perf_test_once_vars(test_no,if_no,loops_num,options,cycles,16,random_one_key,0,if_fn,h,kv,result);\
 }while(0)
 
-
-#define perf_test_1_linear(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{ \
-  u64 _loop_cnt = loops_num/8;\
-  u64 num_of_elm = loops_num;\
-  options = 0;\
-  u64 start; \
-  u8 key_mask = 0xFF;\
-  u8 valid_key_idx = 0; \
-  reset_keys(kv,8,0);\
-  start = clib_cpu_time_now();\
-  do{\
-\
-    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    shift_keys(kv,8,8);\
-    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
-    options+=8; \
-\
-  }while(--_loop_cnt);\
-  cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
-}while(0)
-
-#define perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,loop_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
-do{ \
-  u64 _loop_cnt = loops_num/loop_cnt_once;\
-  u64 div_cnt = loops_num%loop_cnt_once; \
-  u64 num_of_elm = loops_num;\
-  options = 0;\
-  u64 start; \
-  u8 key_mask = 0xFF;\
-  u8 valid_key_idx = 0; \
-  reset_keys(kv,loop_cnt_once,0);\
-  start = clib_cpu_time_now();\
-  do{\
-\
-    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    if (if_fn(h, kv+8, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    key_ops_step(kv,loop_cnt_once,ops_flag);\
-    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
-    options+=loop_cnt_once; \
-\
-  }while(--_loop_cnt);\
-  if(div_cnt){\
-  \
-    for(i=0;i<div_cnt;i++){\
-      \
-      if (BV (clib_bihash_search) (h, &kv[0], &kv[0]) < 0){\
-      }\
-      kv[0].key+=1;\
-    }\
-    options+=div_cnt ;\
-  }\
-  cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
-}while(0)
-
-#define perf_test_1_linear_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{\
-perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,shift_keys,16,if_fn,h,kv,result);\
-\
-}while(0)
-
-#define perf_test_1_random_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{\
-perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,random_keys,0,if_fn,h,kv,result);\
-\
-}while(0)
-
-
-#define perf_test_1_random(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{ \
-  u64 _loop_cnt = loops_num/8;\
-  /* u64 div_cnt = loops_num%8 */ ; \
-  u64 num_of_elm = loops_num;\
-  options = 0;\
-  u64 start; \
-  u8 key_mask = 0xFF;\
-  u8 valid_key_idx = 0; \
-  reset_keys(kv,8,0);\
-  start = clib_cpu_time_now();\
-  do{\
-\
-    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
-    }\
-    random_keys(kv,8,0);\
-    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
-    options+=8; \
-\
-  }while(--_loop_cnt);\
-  cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
-}while(0)
-
-#define perf_test_2(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
-do{ \
-  u64 _loop_cnt = loops_num/8;\
-  u64 num_of_elm = loops_num;\
-  options = 0;\
-  u64 start; \
-  reset_keys(kv,8,0);\
-  start = clib_cpu_time_now();\
-  \
-    do{\
-\
-    bihash_search_batch_v5(h,kv,8,kv);\
-    shift_keys(kv,8,8);\
-    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
-    options+=8; \
-\
-  }while(--_loop_cnt);\
-  \
-  cycles = clib_cpu_time_now() - start ;  \
-  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
-}while(0)
-
-
-#define dump_md5(if_name,out0) do{\
-\
-int n; \
-fformat (stdout,"["#if_name"]\n\t md5sum:");\
-for(n=0; n<MD5_DIGEST_LENGTH; n++) \
-        fformat (stdout,"%02x", out0[n]);\
-fformat (stdout,"\n");\
-}while(0)
-
-always_inline u64 bitmap_first_set(u64 ai)
-{
-  u64 i;
-  u64 base = 1;
-  for(i=0;i<64;i++){
-     if((ai & (base<<i))){
-      return i;
-    }
-  }
-  return ~0;
-}
-
-always_inline u64 bitmap_next_set(u64 ai,u64 ei)
-{
-  u64 i;
-  u64 base = 1;
-  for(i=ei; i<64; i++){
-     if((ai & (base<<i))){
-      return i;
-    }
-  }
-  return ~0;
-}
-
-#define bit_foreach(i,ai) \
-  if(ai) \
-    for(i = bitmap_first_set(ai); \
-        i != ~0; \
-        i = bitmap_next_set(ai,i+1))
-
-#define judge_match_result(if_fn0,if_fn1,md5sum0,md5sum1,ret) \
-do{\
-  ret = memcmp(out0,out1,MD5_DIGEST_LENGTH) ?1:0; \
-  if(!ret){\
-    fformat (stdout,#if_fn0"|-> MATCH <-|"#if_fn1" ---[PASS]\n",if_fn0,if_fn1);\
-  }else{\
-    fformat (stdout,#if_fn0"|-> MATCH <-|"#if_fn1" ---[FAILED]\n",if_fn0,if_fn1);\
-    dump_md5(if_fn0,out0);dump_md5(if_fn1,out1);\
-  }\
-}while(0)
-
-#define consistency_test_0(test_no,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
-do{\
-  u64 _loop_cnt = loops_num;\
-  MD5_CTX c[2];\
-  char buf[256];\
-  unsigned char out0[MD5_DIGEST_LENGTH];\
-  unsigned char out1[MD5_DIGEST_LENGTH];\
-  u8 key_mask = 0xFF;\
-  u8 valid_key_idx = 0; \
-  int ret; \
-  u64 cnts[2]={0,0};\
-  kv0.key = 0;\
-  reset_keys(kv1,8,0);\
-  MD5_Init(&c[0]);\
-  MD5_Init(&c[1]);\
-  \
-  do{\
-  \
-    for(i=0;i<8;i++){\
-      if (if_fn0 (h, &kv0, &kv0) == 0){\
-      cnts[0]++;\
-        sprintf(buf,"%ld",kv0.value);\
-        MD5_Update(&c[0], buf, strlen(buf));\
-      }\
-      shift_one_key(kv0,1);\
-      /* options++ */ ; \
-    }\
-    \
-    if (if_fn1(h, kv1, key_mask,kv1,&valid_key_idx) > 0){\
-       bit_foreach(i,valid_key_idx){\
-       cnts[1]++;\
-          sprintf(buf,"%ld",kv1[i].value);\
-          MD5_Update(&c[1], buf, strlen(buf));\
-        }\
-    }\
-    shift_keys(kv1,8,8);\
-  }while(--_loop_cnt);\
-  \
-  MD5_Final(out0, &c[0]);\
-  MD5_Final(out1, &c[1]);\
-  judge_match_result(if_fn0,if_fn1,out0,out1,ret);\
- \
-}while(0)
-
-
-#define consistency_test_1(test_no,if_no0,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
-do{\
-  u64 _loop_cnt = loops_num;\
-  MD5_CTX c[2];\
-  char buf[256];\
-  unsigned char out0[MD5_DIGEST_LENGTH];\
-  unsigned char out1[MD5_DIGEST_LENGTH];\
-  u8 key_mask = 0xFF;\
-  u8 valid_key_idx = 0; \
-  int ret; \
-  reset_keys(kv0,8,0);\
-  reset_keys(kv1,8,0);\
-  MD5_Init(&c[0]);\
-  MD5_Init(&c[1]);\
-  \
-  do{\
-  \
-    if (if_fn0(h, kv0, key_mask,kv0,&valid_key_idx) > 0){\
-        bit_foreach(i,valid_key_idx){\
-          sprintf(buf,"%ld",kv0[i].value);\
-          MD5_Update(&c[0], buf, strlen(buf));\
-        }\
-    }\
-    \
-    if (if_fn1(h, kv1, key_mask,kv1,&valid_key_idx) > 0){\
-       bit_foreach(i,valid_key_idx){\
-          sprintf(buf,"%ld",kv1[i].value);\
-          MD5_Update(&c[1], buf, strlen(buf));\
-        }\
-    }\
-    shift_keys(kv0,8,8);/* proof the diffrence, change 'shift_keys(...)' to 'random_keys(...)'; */\
-    shift_keys(kv1,8,8);\
-  }while(--_loop_cnt);\
-  \
-  MD5_Final(out0, &c[0]);\
-  MD5_Final(out1, &c[1]);\
-  judge_match_result(if_fn0,if_fn1,out0,out1,ret);\
-\
-}while(0)
-
-
 typedef enum {
   PROFILE_TYPE_I,
   PROFILE_TYPE_II,
@@ -565,8 +285,8 @@ typedef struct profile_type_table
   keyInitType type;
   u64 element_cnt;
   u64 nbuckets;
-  u64 active;
-  f64 bucket_usage_rate;
+  u64 act_bkts;//act bkt
+  f64 act_bkts_per_nbkts;// (act bkt)/nbkt
   char info[32];
 }profile_type_table;
 
@@ -838,13 +558,28 @@ profile_type_table g_p_table[] = {
   {49,PROFILE_TYPE_V,3500000,1048576,1009506,0.9327,"profile_id 49"},
 
   /**
+   * Warning: nbuckets is big require 64GB hupesize, make sure target server have enough mem. 
+   * 
+   */
+  {50,PROFILE_TYPE_V,120000,500000000,114195,0.01089,"profile_id 50"},
+  {51,PROFILE_TYPE_V,250000,500000000,114195,0.01089,"profile_id 51"},
+  {52,PROFILE_TYPE_V,360000,500000000,114195,0.01089,"profile_id 52"},
+  {53,PROFILE_TYPE_V,500000,500000000,114195,0.01089,"profile_id 53"},
+  {54,PROFILE_TYPE_V,700000,500000000,114195,0.01089,"profile_id 54"},
+  {55,PROFILE_TYPE_V,1300000,500000000,114195,0.01089,"profile_id 55"},
+  {56,PROFILE_TYPE_V,1900000,500000000,114195,0.01089,"profile_id 56"},
+  {57,PROFILE_TYPE_V,2500000,500000000,114195,0.01089,"profile_id 57"},
+  {59,PROFILE_TYPE_V,3500000,500000000,114195,0.01089,"profile_id 59"},
+  
+  /**
    * general case, scale: 1e6
    * is_which_profile open switch,some key didn't exist in hash table.
    * @see the macro of perf_test_1
    */
-  {59,PROFILE_TYPE_I,1000000,1048576,1000,0.001,"profile_id 59"}
+  {1059,PROFILE_TYPE_I,1000000,1048576,1000,0.001,"profile_id 59"}
   
 };
+
 
 
 int init_hash_table(
@@ -860,7 +595,11 @@ int init_hash_table(
   keyInitType ntype;
   profile_type_table *ptbl = NULL;
 
-  
+u32 user_buckets;
+u64 user_memory_size;
+
+
+
 #define category_I_init(h,kv,amount) do{\
 int j=0;\
 for (j = 0; j < amount; j++)\
@@ -941,6 +680,13 @@ for (j = 0; j < amount; j++)\
 
   if(!ptbl)return -1;
 
+  user_buckets = ptbl->nbuckets;
+  user_memory_size = 32ULL << 30;//32M
+
+
+  BV (clib_bihash_init) (h, "bihash-profiler", user_buckets, user_memory_size);
+  fformat (stdout, "nbuckets:%d \n",user_buckets);
+
   loop_cnt = ptbl->element_cnt;
   ntype = ptbl->type;
   switch (ntype)
@@ -977,12 +723,267 @@ for (j = 0; j < amount; j++)\
 
 }
 
+#define perf_test_1_linear(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/8;\
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start; \
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  reset_keys(kv,8,0);\
+  start = clib_cpu_time_now();\
+  do{\
+\
+    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    shift_keys(kv,8,8);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
+    options+=8; \
+\
+  }while(--_loop_cnt);\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+#define perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,loop_cnt_once,key_ops_step,ops_flag,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/loop_cnt_once;\
+  u64 div_cnt = loops_num%loop_cnt_once; \
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start; \
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  reset_keys(kv,loop_cnt_once,0);\
+  start = clib_cpu_time_now();\
+  do{\
+\
+    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    if (if_fn(h, kv+8, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    key_ops_step(kv,loop_cnt_once,ops_flag);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
+    options+=loop_cnt_once; \
+\
+  }while(--_loop_cnt);\
+  if(div_cnt){\
+  \
+    for(i=0;i<div_cnt;i++){\
+      \
+      if (BV (clib_bihash_search) (h, &kv[0], &kv[0]) < 0){\
+      }\
+      kv[0].key+=1;\
+    }\
+    options+=div_cnt ;\
+  }\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+#define perf_test_1_linear_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,shift_keys,16,if_fn,h,kv,result);\
+\
+}while(0)
+
+#define perf_test_1_random_x16(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{\
+perf_test_batch_vars(test_no,if_no,loops_num,options,cycles,16,random_keys,0,if_fn,h,kv,result);\
+\
+}while(0)
+
+
+#define perf_test_1_random(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/8;\
+  /* u64 div_cnt = loops_num%8 */ ; \
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start; \
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  reset_keys(kv,8,0);\
+  start = clib_cpu_time_now();\
+  do{\
+\
+    if (if_fn(h, kv, key_mask,result,&valid_key_idx) < 0){\
+    }\
+    random_keys(kv,8,0);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
+    options+=8; \
+\
+  }while(--_loop_cnt);\
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+#define perf_test_2(test_no,if_no,loops_num,options,cycles,if_fn,h,kv,result) \
+do{ \
+  u64 _loop_cnt = loops_num/8;\
+  u64 num_of_elm = loops_num;\
+  options = 0;\
+  u64 start; \
+  reset_keys(kv,8,0);\
+  start = clib_cpu_time_now();\
+  \
+    do{\
+\
+    bihash_search_batch_v5(h,kv,8,kv);\
+    shift_keys(kv,8,8);\
+    if(is_which_profile == 59)insert_key_to_kvs(kv,3,1e6+1000);\
+    options+=8; \
+\
+  }while(--_loop_cnt);\
+  \
+  cycles = clib_cpu_time_now() - start ;  \
+  statistic_perf(test_no,if_no,num_of_elm,options,cycles);\
+}while(0)
+
+
+#define dump_md5(if_name,out0) do{\
+\
+int n; \
+fformat (stdout,"["#if_name"]\n\t md5sum:");\
+for(n=0; n<MD5_DIGEST_LENGTH; n++) \
+        fformat (stdout,"%02x", out0[n]);\
+fformat (stdout,"\n");\
+}while(0)
+
+always_inline u64 bitmap_first_set(u64 ai)
+{
+  u64 i;
+  u64 base = 1;
+  for(i=0;i<64;i++){
+     if((ai & (base<<i))){
+      return i;
+    }
+  }
+  return ~0;
+}
+
+always_inline u64 bitmap_next_set(u64 ai,u64 ei)
+{
+  u64 i;
+  u64 base = 1;
+  for(i=ei; i<64; i++){
+     if((ai & (base<<i))){
+      return i;
+    }
+  }
+  return ~0;
+}
+
+#define bit_foreach(i,ai) \
+  if(ai) \
+    for(i = bitmap_first_set(ai); \
+        i != ~0; \
+        i = bitmap_next_set(ai,i+1))
+
+#define judge_match_result(if_fn0,if_fn1,md5sum0,md5sum1,ret) \
+do{\
+  ret = memcmp(out0,out1,MD5_DIGEST_LENGTH) ?1:0; \
+  if(!ret){\
+    fformat (stdout,#if_fn0"|-> MATCH <-|"#if_fn1" ---[PASS]\n",if_fn0,if_fn1);\
+  }else{\
+    fformat (stdout,#if_fn0"|-> MATCH <-|"#if_fn1" ---[FAILED]\n",if_fn0,if_fn1);\
+    dump_md5(if_fn0,out0);dump_md5(if_fn1,out1);\
+  }\
+}while(0)
+
+#define consistency_test_0(test_no,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
+do{\
+  u64 _loop_cnt = loops_num;\
+  MD5_CTX c[2];\
+  char buf[256];\
+  unsigned char out0[MD5_DIGEST_LENGTH];\
+  unsigned char out1[MD5_DIGEST_LENGTH];\
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  int ret; \
+  u64 cnts[2]={0,0};\
+  kv0.key = 0;\
+  reset_keys(kv1,8,0);\
+  MD5_Init(&c[0]);\
+  MD5_Init(&c[1]);\
+  \
+  do{\
+  \
+    for(i=0;i<8;i++){\
+      if (if_fn0 (h, &kv0, &kv0) == 0){\
+      cnts[0]++;\
+        sprintf(buf,"%ld",kv0.value);\
+        MD5_Update(&c[0], buf, strlen(buf));\
+      }\
+      shift_one_key(kv0,1);\
+      /* options++ */ ; \
+    }\
+    \
+    if (if_fn1(h, kv1, key_mask,kv1,&valid_key_idx) > 0){\
+       bit_foreach(i,valid_key_idx){\
+       cnts[1]++;\
+          sprintf(buf,"%ld",kv1[i].value);\
+          MD5_Update(&c[1], buf, strlen(buf));\
+        }\
+    }\
+    shift_keys(kv1,8,8);\
+  }while(--_loop_cnt);\
+  \
+  MD5_Final(out0, &c[0]);\
+  MD5_Final(out1, &c[1]);\
+  judge_match_result(if_fn0,if_fn1,out0,out1,ret);\
+ \
+}while(0)
+
+
+#define consistency_test_1(test_no,if_no0,if_no1,loops_num,h,kv0,kv1,if_fn0,if_fn1) \
+do{\
+  u64 _loop_cnt = loops_num;\
+  MD5_CTX c[2];\
+  char buf[256];\
+  unsigned char out0[MD5_DIGEST_LENGTH];\
+  unsigned char out1[MD5_DIGEST_LENGTH];\
+  u8 key_mask = 0xFF;\
+  u8 valid_key_idx = 0; \
+  int ret; \
+  reset_keys(kv0,8,0);\
+  reset_keys(kv1,8,0);\
+  MD5_Init(&c[0]);\
+  MD5_Init(&c[1]);\
+  \
+  do{\
+  \
+    if (if_fn0(h, kv0, key_mask,kv0,&valid_key_idx) > 0){\
+        bit_foreach(i,valid_key_idx){\
+          sprintf(buf,"%ld",kv0[i].value);\
+          MD5_Update(&c[0], buf, strlen(buf));\
+        }\
+    }\
+    \
+    if (if_fn1(h, kv1, key_mask,kv1,&valid_key_idx) > 0){\
+       bit_foreach(i,valid_key_idx){\
+          sprintf(buf,"%ld",kv1[i].value);\
+          MD5_Update(&c[1], buf, strlen(buf));\
+        }\
+    }\
+    shift_keys(kv0,8,8);/* proof the diffrence, change 'shift_keys(...)' to 'random_keys(...)'; */\
+    shift_keys(kv1,8,8);\
+  }while(--_loop_cnt);\
+  \
+  MD5_Final(out0, &c[0]);\
+  MD5_Final(out1, &c[1]);\
+  judge_match_result(if_fn0,if_fn1,out0,out1,ret);\
+\
+}while(0)
+
+
 /*
 *
 *
 */
 
-int main(int argc,char *argv[])
+int perf_cmp_body(int profile_id,int start_flag,int cmp_msk,int consistency_msk)
 {
 
   BVT (clib_bihash_kv) kv;
@@ -995,47 +996,27 @@ int main(int argc,char *argv[])
   BVT (clib_bihash_kv) kv1_8[8];
   BVT (clib_bihash_kv) kv4_8[8];
   BVT (clib_bihash_kv) kv5_8[8];
-  BVT (clib_bihash_kv) kv14_8[16];
+  // BVT (clib_bihash_kv) kv14_8[16];
   BVT (clib_bihash) * h;
 
-  // u32 user_buckets = 1228800;
-    u32 user_buckets = 614400;
-    // u32 user_buckets = 307200;
-
-  u32 user_memory_size = 209715200;
-
   BVT (clib_bihash) hash={0};
-  // BVT (clib_bihash) hash2={0};
   h = &hash;
-  // clib_mem_init_with_page_size (1ULL << 30, CLIB_MEM_PAGE_SZ_1G);
-  clib_mem_init (0, 1ULL << 30);
-
-  BV (clib_bihash_init) (h, "bihash-profiler", user_buckets, user_memory_size);
 
   #if BIHASH_ENABLE_STATS
   BV (clib_bihash_set_stats_callback) (h, inc_stats_callback, &stats);
   #endif
 
   u32 fix_seed=0;
-
-  // if(argc > 4){
-    fix_seed = time(0);
-  // }
+  fix_seed = time(0);
   srandom(fix_seed);
 
-
-  // BV (clib_bihash_init) (&hash2, "test", user_buckets, user_memory_size);
   i=j=0;
   kv.key = 0;
 
-  int is_which ;
   int is_which_profile;
-  is_which_profile = 0;
-
-  if(argc>1){
-    is_which_profile = atoi(argv[1]);
-  }
-
+  int is_which_cmp;
+  is_which_profile = profile_id;
+ 
   ret = init_hash_table(g_p_table,is_which_profile,h,&loop_cnt);
   if(ret < 0 ){
       fformat (stdout, "init_hash_table failed \n");
@@ -1062,7 +1043,6 @@ int main(int argc,char *argv[])
 
 #endif
   
-
   f64 base;
   f64 cycles_per_second;
   cycles_per_second = os_cpu_clock_frequency();
@@ -1097,54 +1077,64 @@ int main(int argc,char *argv[])
             new_perf_data_line\
             new_perf_data_line\
             new_perf_data_line\
-            new_perf_data_line\
-            new_perf_data_line\
             table_end_line,\
         options[0],\
         new_data_line(0,0),\
-        new_data_line(1,1),\
         new_data_line(4,4),\
-        new_data_line(5,5),\
-        new_data_line(6,6)\
+        new_data_line(5,5)\
         );\
   }while(0)
 
-  is_which = 0xFF;
+  is_which_cmp = cmp_msk;
   int is_consistency = 0xFF;
-  if(argc > 2){
-    is_which = atoi(argv[2]);
-  }
 
- 
-  if(is_which == 0xFF){
+  /*
+  * Reason of duplicate execution: we want to know the measure on hot I-Cache&D-Cache.
+  */
+  int start_mode = start_flag;/*0:cold,1:warm*/
+  #define perf_test_lauch_mode(s_mod,perf_test_fn) do{\
+  if(s_mod){\
+    perf_test_fn;\
+  }\
+  perf_test_fn;\
+  }while(0)
+
+  if(is_which_cmp == 0xFF){
      /**
      * 
-     * V0 as baseline, compare V4 and V5 with increased searching keys.
+     * V0 as baseline, compare V4 and V5 as growing searching keys.
      * Observe the 'ratio' metric.
      */
       fformat (stdout,"perf_test[ALL]...profile_id[%d]\n",is_which_profile);
-      perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-      perf_test_0_linear_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
-      perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-      perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
-      perf_test_1_linear_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
 
-      // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
+      perf_test_lauch_mode(start_mode,
+                perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv));
+      perf_test_lauch_mode(start_mode,
+                perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],
+                BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8));
+      perf_test_lauch_mode(start_mode,
+                perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],
+                BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8));
     
       format_prt_compared(0,0);
 
-  }else if(is_which == 0x0 ){
+  }else if(is_which_cmp == 0x0 ){
       fformat (stdout,"perf_test[0]...\n");
-      perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-  }else if(is_which == 0x4){
+      perf_test_lauch_mode(start_mode,
+                perf_test_0_linear(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv));
+      
+  }else if(is_which_cmp == 0x4){
       fformat (stdout,"perf_test[4]...\n");
-      perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-  }else if(is_which == 0x5){
+      perf_test_lauch_mode(start_mode,
+                perf_test_1_linear(4,4,loop_cnt,options[4],cycles[4],
+                BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8));
+  }else if(is_which_cmp == 0x5){
       fformat (stdout,"perf_test[5]...\n");
-      // perf_test_2(5,5,loop_cnt,options[5],cycles[5],NULL,h,kv5_8,kv5_8);
-      perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
+      perf_test_lauch_mode(start_mode,
+                perf_test_1_linear(5,5,loop_cnt,options[5],cycles[5],
+                BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8));
 
-  }else if(is_which == 0x6){
+  }else if(is_which_cmp == 0x6){
     /**
      * 
      * V0 as baseline, compare V4 and V5 with random searching keys.
@@ -1152,20 +1142,21 @@ int main(int argc,char *argv[])
      */
     fformat (stdout,"perf_test[6]...profile_id[%d]\n",is_which_profile);
 
-    perf_test_0_random(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv);
-    perf_test_0_random_x16(10,10,loop_cnt,options[1],cycles[1],NULL,h,kv,kv);
-    perf_test_1_random(4,4,loop_cnt,options[4],cycles[4],BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8);
-    perf_test_1_random(5,5,loop_cnt,options[5],cycles[5],BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8);
-    perf_test_1_random_x16(14,14,loop_cnt,options[6],cycles[6],BV (clib_bihash_search_batch_v4),h,kv14_8,kv14_8);
+    perf_test_lauch_mode(start_mode,
+                perf_test_0_random(0,0,loop_cnt,options[0],cycles[0],NULL,h,kv,kv));
 
+    perf_test_lauch_mode(start_mode,
+                perf_test_1_random(4,4,loop_cnt,options[4],cycles[4],
+                BV (clib_bihash_search_batch_v4),h,kv4_8,kv4_8));
+    perf_test_lauch_mode(start_mode,
+                perf_test_1_random(5,5,loop_cnt,options[5],cycles[5],
+                BV (clib_bihash_search_batch_v5),h,kv5_8,kv5_8));
 
     format_prt_compared(0,0);
 
   }
 
-  if(argc > 3) {
-    is_consistency = atoi(argv[3]);
-  }
+  is_consistency = consistency_msk;
  
   if(is_consistency == 0xFF){
       fformat (stdout,"consistency_test[ALL]...\n");
@@ -1205,77 +1196,8 @@ int main(int argc,char *argv[])
                           BV (clib_bihash_search_batch_v4));
   }
   
+  BV (clib_bihash_free) (h);
   return 0;
 }
 
-/**
- * 
- * index|key|hash|mask|search_key
- * --------------------------------------------------
- * 0|0x64|0x361d2cc6|0x1fffff|0x1d2cc6
- * 2687876|0x2903e8|0xd3fd2cc6|0x1fffff|0x1d2cc6
- * 4244779|0x40c58f|0xc05d2cc6|0x1fffff|0x1d2cc6
- * 6931871|0x69c603|0x25bd2cc6|0x1fffff|0x1d2cc6
- * 9652445|0x934941|0xe71d2cc6|0x1fffff|0x1d2cc6
- * 12208745|0xba4acd|0x2fd2cc6|0x1fffff|0x1d2cc6
- * 13864006|0xd38caa|0x115d2cc6|0x1fffff|0x1d2cc6
- * 16420546|0xfa8f26|0xf4bd2cc6|0x1fffff|0x1d2cc6
- * 18698989|0x11d5351|0x4c7d2cc6|0x1fffff|0x1d2cc6
- * 20205689|0x13450dd|0xa99d2cc6|0x1fffff|0x1d2cc6
- * 22910550|0x15d96ba|0xba3d2cc6|0x1fffff|0x1d2cc6
- * 24417490|0x1749536|0x5fdd2cc6|0x1fffff|0x1d2cc6
- * 26090000|0x18e1a74|0x9d7d2cc6|0x1fffff|0x1d2cc6
- * 27728276|0x1a719f8|0x789d2cc6|0x1fffff|0x1d2cc6
- * 30334779|0x1cedf9f|0x6b3d2cc6|0x1fffff|0x1d2cc6
- * 31972271|0x1e7dc13|0x8edd2cc6|0x1fffff|0x1d2cc6
- * 
- * 2869615|0x213a582|0x273d2cc6|0x1fffff|0x1d2cc6
- * 5425659|0x23aa60e|0xc2dd2cc6|0x1fffff|0x1d2cc6
- * 7046230|0x2536069|0xd17d2cc6|0x1fffff|0x1d2cc6
- * 9603026|0x27a63e5|0x349d2cc6|0x1fffff|0x1d2cc6
- * 10031252|0x280eca7|0xf63d2cc6|0x1fffff|0x1d2cc6
- * 12718872|0x2a9ef2b|0x13dd2cc6|0x1fffff|0x1d2cc6
- * 14175545|0x2c0294c|0x7d2cc6|0x1fffff|0x1d2cc6
- * 16862893|0x2e92ac0|0xe59d2cc6|0x1fffff|0x1d2cc6
- * 19339940|0x30ef6b7|0x5d5d2cc6|0x1fffff|0x1d2cc6
- * 20977960|0x327f53b|0xb8bd2cc6|0x1fffff|0x1d2cc6
- * 23484233|0x34e335c|0xab1d2cc6|0x1fffff|0x1d2cc6
- * 25121981|0x36730d0|0x4efd2cc6|0x1fffff|0x1d2cc6
- * 28697471|0x39dbf92|0x8c5d2cc6|0x1fffff|0x1d2cc6
- * 30203915|0x3b4bc1e|0x69bd2cc6|0x1fffff|0x1d2cc6
- * 32874086|0x3dd7a79|0x7a1d2cc6|0x1fffff|0x1d2cc6
- * 
- * 
- * 
- * 
- */
-int add_collisions( BVT (clib_bihash) * h)
-{
-    BVT (clib_bihash_kv) kv;
-    u64 key_table[]={
-          0x64,0x2903e8,0x40c58f,0x69c603,          // cnt=4,log2_page = 0 on BIHASH_KVP_PER_PAGE=4
-          0x934941,0xba4acd,0xd38caa,0xfa8f26,     //  cnt=8,log2_page = 1 on BIHASH_KVP_PER_PAGE=4
-          0x11d5351,0x13450dd,0x15d96ba,0x1749536,  // cnt=12,log2_page = 2 on BIHASH_KVP_PER_PAGE=4
-          0x18e1a74,0x1a719f8,0x1cedf9f,0x1e7dc13,  // cnt=16,log2_page = 2 on BIHASH_KVP_PER_PAGE=4
-          0x213a582,0x23aa60e,0x2536069,0x27a63e5}; // cnt=20,log2_page = 3 on BIHASH_KVP_PER_PAGE=4
-    int cnt = sizeof(key_table)/sizeof(key_table[0]);
-    int i;
-  
-    /*
-    *  
-    *  Add more than BIHASH_KVP_PER_PAGE elements to make split_rehash happen.
-    *  but it's hardly to emit enough keys to entry split_rehash_liear, 
-    *  it depend on two failures of split_rehash, what mean the keys after splited,and 
-    *  rehash by the address of V, should hit the same KVS over than BIHASH_KVP_PER_PAGE times.
-    *  so, it could be happen in theory, hard to find the key.
-    */
-    for(i=0;i<cnt;i++){
-      kv.key = key_table[i];
-      kv.value =  key_table[i]+0x7FFFFFFFFFFF;
 
-      BV (clib_bihash_add_del) (h, &kv, 1 /* is_add */ );
-    }
-   
-
-    return 0;
-}

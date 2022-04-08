@@ -96,5 +96,5 @@ endmacro()
 
 # target_include_directories(vpptoys PUBLIC ${VPP_RELEASE_INSTALL_PATH}/include)
 
-add_exec(bihash_application SOURCES src/bihash_application.c VARIANTS)
+add_exec(bihash_application SOURCES src/main.c VARIANTS)
 
